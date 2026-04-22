@@ -518,8 +518,8 @@ h1,h2,h3,h4,h5,h6 { font-family: var(--font-heading); font-weight: 700; line-hei
   .section { padding: 5rem 0; }
   html, body, a, button, input, select { cursor: auto !important; }
   .custom-cursor { display: none !important; }
-  .scrolling-ball { display: none !important; }
-  .ball-trail { display: none !important; }
+  .scrolling-ball { transform: scale(0.65); left: -8px !important; }
+  .ball-trail { transform: scale(0.65); }
   .scroll-dots { display: none; }
 
   .navbar__links {

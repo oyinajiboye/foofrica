@@ -1,0 +1,65 @@
+/* ─── Scout Watchlist Page Styles ─────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+.wtc-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #FAFAFA;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #111827;
+}
+
+.wtc-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 20px 32px 0 32px;
+}
+
+.wtc-stat-card {
+  background: #ffffff;
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.wtc-stat-num {
+  font-size: 24px;
+  font-weight: 800;
+  color: #166534;
+}
+
+.wtc-stat-lbl {
+  font-size: 12px;
+  color: #6B7280;
+  font-weight: 600;
+}
+
+.wtc-notes-input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 12px;
+  background: #F9FAFB;
+}
+
+.wtc-status-badge {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.wtc-status-badge.review { background: #FEF3C7; color: #B45309; }
+.wtc-status-badge.trial { background: #DCFCE7; color: #15803D; }
+.wtc-status-badge.signed { background: #DBEAFE; color: #1E40AF; }

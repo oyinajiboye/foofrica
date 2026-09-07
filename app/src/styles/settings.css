@@ -1,0 +1,795 @@
+/* ─── Settings Page Styles ─────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+.stg-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #FAFAFA;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #111827;
+}
+
+/* ─── Header Section ─────────────────────────────────────────────── */
+.stg-header {
+  background: #ffffff;
+  border-bottom: 1px solid #E5E7EB;
+  padding: 24px 32px 18px 32px;
+}
+
+.stg-header__inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stg-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stg-back-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #E5E7EB;
+  background: #F9FAFB;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.stg-back-btn:hover {
+  background: #E5E7EB;
+}
+
+.stg-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0;
+}
+
+.stg-subtitle {
+  font-size: 13.5px;
+  color: #6B7280;
+  margin: 4px 0 0 0;
+}
+
+/* ─── Main 2-Column Layout ───────────────────────────────────────── */
+.stg-grid {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  gap: 28px;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 32px 60px 32px;
+}
+
+/* ─── Left Sidebar Menu ───────────────────────────────────────────── */
+.stg-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.stg-menu-card {
+  background: #ffffff;
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
+}
+
+.stg-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border: none;
+  border-left: 3px solid transparent;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: #4B5563;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.stg-menu-item:hover {
+  background: #F9FAFB;
+  color: #111827;
+}
+
+.stg-menu-item.active {
+  background: #EAF4EC;
+  border-left-color: #166534;
+  color: #166534;
+  font-weight: 700;
+}
+
+.stg-menu-item.danger {
+  color: #DC2626;
+}
+
+.stg-menu-item.danger:hover {
+  background: #FEE2E2;
+}
+
+.stg-menu-divider {
+  height: 1px;
+  background-color: #E5E7EB;
+  margin: 6px 0;
+}
+
+.stg-menu-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stg-menu-icon {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.stg-menu-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.stg-menu-item.active .stg-menu-dot {
+  background: #EAB308;
+}
+
+/* Sidebar Profile Mini Card Widget */
+.stg-user-widget {
+  background: #ffffff;
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.stg-user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stg-user-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #166534;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stg-user-name {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.stg-user-handle {
+  font-size: 11.5px;
+  color: #6B7280;
+}
+
+.stg-widget-divider {
+  height: 1px;
+  background: #F3F4F6;
+  margin: 0;
+}
+
+.stg-user-status {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #D97706;
+}
+
+.stg-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stg-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: #E5E7EB;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.stg-progress-fill {
+  height: 100%;
+  background: #166534;
+  border-radius: 3px;
+}
+
+.stg-progress-pct {
+  font-size: 11px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.stg-progress-sub {
+  font-size: 11px;
+  color: #9CA3AF;
+  margin-top: -6px;
+}
+
+.stg-btn-view-profile {
+  width: 100%;
+  padding: 7px 0;
+  background: #ffffff;
+  border: 1px solid #D1D5DB;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #166534;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.stg-btn-view-profile:hover {
+  background: #F9FAFB;
+}
+
+/* ─── Right Content Cards ─────────────────────────────────────────── */
+.stg-content-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.stg-card {
+  background: #ffffff;
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.stg-card__title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0 0 4px 0;
+}
+
+.stg-card__subtitle {
+  font-size: 13px;
+  color: #6B7280;
+  margin: 0 0 20px 0;
+}
+
+/* Form Controls */
+.stg-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.stg-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stg-form-group label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.stg-form-group input, .stg-form-group select, .stg-form-group textarea {
+  padding: 9px 14px;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  font-size: 13.5px;
+  outline: none;
+  background: #ffffff;
+  color: #111827;
+}
+
+.stg-form-group input:focus, .stg-form-group select:focus, .stg-form-group textarea:focus {
+  border-color: #166534;
+  box-shadow: 0 0 0 3px rgba(22, 101, 52, 0.1);
+}
+
+.stg-info-box {
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 12.5px;
+  color: #4B5563;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.stg-info-box a {
+  color: #166534;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.stg-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.stg-btn-save {
+  padding: 9px 22px;
+  background: #166534;
+  color: #ffffff;
+  border: none;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.stg-btn-save:hover {
+  background: #14532D;
+}
+
+.stg-btn-cancel {
+  padding: 9px 20px;
+  background: #ffffff;
+  color: #374151;
+  border: 1px solid #D1D5DB;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Toggles & Settings Rows */
+.stg-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.stg-toggle-row:last-child {
+  border-bottom: none;
+}
+
+.stg-toggle-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.stg-toggle-sub {
+  font-size: 12px;
+  color: #6B7280;
+  margin-top: 2px;
+}
+
+/* Custom Switch Toggle */
+.stg-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.stg-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.stg-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #E5E7EB;
+  transition: .2s;
+  border-radius: 24px;
+}
+
+.stg-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .2s;
+  border-radius: 50%;
+}
+
+input:checked + .stg-slider {
+  background-color: #166534;
+}
+
+input:checked + .stg-slider:before {
+  transform: translateX(20px);
+}
+
+/* Profile Layers Cards */
+.stg-layer-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  background: #ffffff;
+}
+
+.stg-layer-item:last-child {
+  margin-bottom: 0;
+}
+
+.stg-layer-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.stg-layer-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #F3F4F6;
+  color: #4B5563;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.stg-layer-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stg-layer-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.stg-layer-status {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.stg-layer-desc {
+  font-size: 12px;
+  color: #6B7280;
+  margin-top: 2px;
+}
+
+.stg-layer-btn {
+  padding: 6px 14px;
+  border-radius: 16px;
+  border: 1px solid #D1D5DB;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  color: #166534;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Radio Selection Option Cards */
+.stg-radio-cards-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stg-radio-card {
+  padding: 14px 16px;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: #ffffff;
+}
+
+.stg-radio-card.active {
+  border-color: #166534;
+  background: #EAF4EC;
+}
+
+.stg-radio-card input {
+  accent-color: #166534;
+  width: 16px;
+  height: 16px;
+}
+
+/* Table Notifications Grid */
+.stg-notif-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.stg-notif-table th {
+  text-align: right;
+  padding: 10px 16px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #6B7280;
+}
+
+.stg-notif-table th:first-child {
+  text-align: left;
+}
+
+.stg-notif-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #F3F4F6;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.stg-notif-table tr:last-child td {
+  border-bottom: none;
+}
+
+.stg-notif-table td:not(:first-child) {
+  text-align: right;
+}
+
+/* Verification Pending Header Ring */
+.stg-verif-top-card {
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  padding: 24px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.stg-verif-top-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.stg-verif-top-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: #FEF3C7;
+  color: #D97706;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.stg-ring-graphic {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 4px solid #FEF08A;
+  border-top-color: #EAB308;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: #D97706;
+}
+
+/* Verification 2x2 Cards Grid */
+.stg-verif-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.stg-verif-card {
+  background: #ffffff;
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stg-verif-btn-gold {
+  width: 100%;
+  padding: 9px 0;
+  background: #FEF9C3;
+  color: #854D0E;
+  border: 1px solid #FEF08A;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  text-align: center;
+}
+
+.stg-verif-btn-green {
+  width: 100%;
+  padding: 9px 0;
+  background: #DCFCE7;
+  color: #15803D;
+  border: 1px solid #86EFAC;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  text-align: center;
+}
+
+/* Checklist Items */
+.stg-checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #374151;
+  margin-bottom: 10px;
+}
+
+.stg-check-icon-green {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #166534;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.stg-check-icon-gray {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #D1D5DB;
+  background: transparent;
+}
+
+/* Security Alert Banner */
+.stg-alert-banner {
+  background: #FFFBEB;
+  border: 1px solid #FCD34D;
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Billing Grid */
+.stg-billing-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.stg-billing-card {
+  background: #ffffff;
+  border: 1px solid #E5E7EB;
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stg-billing-btn-soon {
+  width: 100%;
+  padding: 8px 0;
+  background: #FEF9C3;
+  color: #854D0E;
+  border: 1px solid #FEF08A;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+/* Help & Support List */
+.stg-help-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid #F3F4F6;
+  cursor: pointer;
+}
+
+.stg-help-item:last-child {
+  border-bottom: none;
+}
+
+.stg-help-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.stg-help-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #F3F4F6;
+  color: #4B5563;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+/* Danger Zone Box */
+.stg-danger-box {
+  background: #ffffff;
+  border: 1px solid #FECACA;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.stg-btn-danger {
+  padding: 8px 18px;
+  background: #DC2626;
+  color: #ffffff;
+  border: none;
+  border-radius: 18px;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+}

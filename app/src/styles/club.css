@@ -1,0 +1,268 @@
+/* ─── Club Page Styles ─────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+.clb-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #FAFAFA;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #111827;
+}
+
+/* ─── Hero Cover Section ─────────────────────────────────────────── */
+.clb-banner {
+  height: 220px;
+  background: linear-gradient(135deg, #166534 0%, #064E3B 100%);
+  position: relative;
+}
+
+.clb-banner-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.4;
+}
+
+.clb-header-card {
+  max-width: 1280px;
+  margin: -60px auto 0 auto;
+  padding: 0 32px;
+  position: relative;
+  z-index: 10;
+}
+
+.clb-header-inner {
+  background: #ffffff;
+  border: 1px solid #E5E7EB;
+  border-radius: 20px;
+  padding: 24px 32px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.clb-crest-group {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.clb-crest {
+  width: 90px;
+  height: 90px;
+  border-radius: 20px;
+  background: #166534;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  font-weight: 800;
+  border: 4px solid #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.clb-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.clb-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.clb-name {
+  font-size: 24px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0;
+}
+
+.clb-verified-badge {
+  background: #DCFCE7;
+  color: #15803D;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.clb-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  color: #6B7280;
+  margin-top: 4px;
+}
+
+.clb-action-btns {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.clb-btn-primary {
+  padding: 10px 22px;
+  background: #166534;
+  color: #ffffff;
+  border: none;
+  border-radius: 20px;
+  font-size: 13.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.clb-btn-primary:hover {
+  background: #14532D;
+}
+
+.clb-btn-outline {
+  padding: 10px 20px;
+  background: #ffffff;
+  color: #374151;
+  border: 1px solid #D1D5DB;
+  border-radius: 20px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ─── Main Grid Layout ───────────────────────────────────────────── */
+.clb-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 28px;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 32px 60px 32px;
+}
+
+/* Tabs Bar */
+.clb-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #E5E7EB;
+  margin-bottom: 24px;
+}
+
+.clb-tab-btn {
+  padding: 12px 18px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6B7280;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.clb-tab-btn:hover {
+  color: #111827;
+}
+
+.clb-tab-btn.active {
+  border-bottom-color: #166534;
+  color: #166534;
+  font-weight: 800;
+}
+
+/* Squad Roster Table */
+.clb-squad-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #ffffff;
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.clb-squad-table th {
+  text-align: left;
+  padding: 12px 18px;
+  background: #F9FAFB;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #6B7280;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.clb-squad-table td {
+  padding: 14px 18px;
+  border-bottom: 1px solid #F3F4F6;
+  font-size: 13.5px;
+  color: #111827;
+}
+
+.clb-squad-table tr:last-child td {
+  border-bottom: none;
+}
+
+.clb-player-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.clb-player-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #166534;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clb-pos-pill {
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  background: #F3F4F6;
+  color: #374151;
+}
+
+.clb-pos-pill.fw { background: #FEE2E2; color: #991B1B; }
+.clb-pos-pill.mf { background: #FEF3C7; color: #92400E; }
+.clb-pos-pill.df { background: #DBEAFE; color: #1E40AF; }
+.clb-pos-pill.gk { background: #F3E8FF; color: #6B21A8; }
+
+/* Trial Cards */
+.clb-trial-card {
+  background: #ffffff;
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.clb-trial-badge {
+  background: #FEF3C7;
+  color: #D97706;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 800;
+}

@@ -1,0 +1,835 @@
+/* ─── Profile Page Styles ────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+.prf-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #FAFAFA;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #111827;
+}
+
+/* ─── Hero Banner & Cover Photo ───────────────────────────────────── */
+.prf-hero {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  background: linear-gradient(135deg, #064E3B 0%, #1A7A2E 100%);
+  overflow: hidden;
+}
+
+.prf-hero__cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.prf-hero__back-btn {
+  position: absolute;
+  top: 16px;
+  left: 24px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 10;
+  transition: transform 0.15s ease;
+}
+
+.prf-hero__back-btn:hover {
+  transform: scale(1.05);
+  background: #ffffff;
+}
+
+/* ─── Header Info Section ─────────────────────────────────────────── */
+.prf-header-card {
+  background: #ffffff;
+  border-bottom: 1px solid #E5E7EB;
+  padding: 0 32px 24px 32px;
+  position: relative;
+}
+
+.prf-header-card__inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.prf-avatar-wrap {
+  position: relative;
+  margin-top: -56px;
+  margin-bottom: 16px;
+  display: inline-block;
+}
+
+.prf-avatar {
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  border: 4px solid #ffffff;
+  background: #166534;
+  color: #ffffff;
+  font-size: 38px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  object-fit: cover;
+}
+
+.prf-header-card__more-btn {
+  position: absolute;
+  top: 24px;
+  right: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid #E5E7EB;
+  background: #ffffff;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.prf-header-card__more-btn:hover {
+  background: #F3F4F6;
+}
+
+.prf-header-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.prf-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prf-user-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.prf-user-name {
+  font-size: 24px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0;
+}
+
+.prf-verified-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #DCFCE7;
+  color: #15803D;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+}
+
+.prf-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: #4B5563;
+  flex-wrap: wrap;
+}
+
+.prf-handle {
+  font-weight: 600;
+  color: #111827;
+}
+
+.prf-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #16A34A;
+  margin-top: 4px;
+}
+
+/* Stats Row */
+.prf-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.prf-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.prf-stat-item__val {
+  font-size: 18px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.prf-stat-item__lbl {
+  font-size: 11.5px;
+  color: #6B7280;
+  font-weight: 500;
+}
+
+/* ─── Profile Navigation Tabs Bar ─────────────────────────────────── */
+.prf-tabs-bar {
+  background: #ffffff;
+  border-bottom: 1px solid #E5E7EB;
+  padding: 0 32px;
+}
+
+.prf-tabs-bar__inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.prf-tab {
+  padding: 14px 0;
+  background: none;
+  border: none;
+  border-bottom: 2.5px solid transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6B7280;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.prf-tab:hover {
+  color: #111827;
+}
+
+.prf-tab.active {
+  color: #1A7A2E;
+  border-bottom-color: #1A7A2E;
+  font-weight: 700;
+}
+
+/* ─── Main 2-Column Grid Layout ──────────────────────────────────── */
+.prf-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 28px;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 32px 60px 32px;
+}
+
+.prf-main-col {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+/* Completion Banner */
+.prf-completion-banner {
+  background: #064E3B;
+  color: #ffffff;
+  border-radius: 16px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.prf-completion-banner__info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prf-completion-banner__title {
+  font-size: 15px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.prf-completion-banner__desc {
+  font-size: 12.5px;
+  color: #A7F3D0;
+  margin: 0;
+}
+
+.prf-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.prf-progress-bar {
+  width: 180px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.prf-progress-fill {
+  height: 100%;
+  background: #EAB308;
+  border-radius: 4px;
+}
+
+.prf-progress-text {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.prf-completion-btn {
+  padding: 9px 18px;
+  background: #EAB308;
+  color: #111827;
+  border: none;
+  border-radius: 20px;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  white-space: nowrap;
+}
+
+.prf-completion-btn:hover {
+  transform: scale(1.03);
+  background: #FACC15;
+}
+
+/* ─── Cards & Sections ───────────────────────────────────────────── */
+.prf-card {
+  background: #ffffff;
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.prf-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.prf-card__title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0;
+}
+
+.prf-card__link {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #1A7A2E;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.prf-card__link:hover {
+  text-decoration: underline;
+}
+
+/* About Card Grid */
+.prf-about-bio {
+  font-size: 13.5px;
+  color: #374151;
+  line-height: 1.55;
+  margin: 0 0 20px 0;
+}
+
+.prf-about-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.prf-about-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.prf-about-lbl {
+  font-size: 11.5px;
+  color: #6B7280;
+  font-weight: 500;
+}
+
+.prf-about-val {
+  font-size: 13.5px;
+  color: #111827;
+  font-weight: 700;
+}
+
+/* Career Timeline */
+.prf-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.prf-timeline-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.prf-timeline-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.prf-timeline-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.prf-timeline-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prf-timeline-club {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.prf-timeline-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.prf-timeline-sub {
+  font-size: 12.5px;
+  color: #6B7280;
+}
+
+/* Highlights Grid (4 Columns) */
+.prf-highlights-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.prf-hl-card {
+  position: relative;
+  height: 380px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #111827;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.prf-hl-card:hover {
+  transform: translateY(-2px);
+}
+
+.prf-hl-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.85;
+}
+
+.prf-hl-duration {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0,0,0,0.65);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.prf-hl-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 14px 12px 14px;
+  background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.85) 100%);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prf-hl-author-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prf-hl-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.prf-hl-author-name {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.prf-hl-tag {
+  background: #EAB308;
+  color: #111827;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 10px;
+  width: fit-content;
+}
+
+.prf-hl-stats {
+  font-size: 11px;
+  color: #D1D5DB;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Stats Summary Cards */
+.prf-stats-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.prf-stat-card {
+  background: #ffffff;
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.prf-stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.prf-stat-val {
+  font-size: 24px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.prf-stat-lbl {
+  font-size: 12px;
+  color: #6B7280;
+  margin-top: 2px;
+}
+
+/* Stats Table */
+.prf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.prf-table th {
+  text-align: left;
+  padding: 10px 14px;
+  color: #6B7280;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.prf-table td {
+  padding: 14px;
+  border-bottom: 1px solid #F3F4F6;
+  color: #111827;
+  font-weight: 600;
+}
+
+/* Skills Progress Bars */
+.prf-skill-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.prf-skill-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.prf-skill-bar {
+  width: 100%;
+  height: 8px;
+  background: #F3F4F6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.prf-skill-fill {
+  height: 100%;
+  background: #1A7A2E;
+  border-radius: 4px;
+}
+
+/* ─── Right Sidebar ──────────────────────────────────────────────── */
+.prf-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.prf-widget {
+  background: #ffffff;
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.prf-widget__title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0 0 14px 0;
+}
+
+.prf-snapshot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.prf-snapshot-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.prf-snapshot-lbl {
+  color: #6B7280;
+  font-weight: 500;
+}
+
+.prf-snapshot-val {
+  font-weight: 700;
+  color: #111827;
+}
+
+.prf-skill-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.prf-skill-pill {
+  background: #DCFCE7;
+  color: #15803D;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 10px;
+}
+
+/* Suggested Players List */
+.prf-sug-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.prf-sug-item:last-child {
+  margin-bottom: 0;
+}
+
+.prf-sug-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.prf-sug-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.prf-sug-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.prf-sug-sub {
+  font-size: 11px;
+  color: #6B7280;
+}
+
+.prf-sug-btn {
+  padding: 5px 14px;
+  background: #1A7A2E;
+  color: #ffffff;
+  border: none;
+  border-radius: 16px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.prf-sug-btn.following {
+  background: #ffffff;
+  color: #374151;
+  border: 1px solid #D1D5DB;
+}
+
+/* Modal Popup */
+.prf-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.prf-modal {
+  background: #ffffff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 540px;
+  padding: 24px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.prf-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.prf-modal__title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0;
+}
+
+.prf-modal__close {
+  border: none;
+  background: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #6B7280;
+}
+
+.prf-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.prf-form-group label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.prf-form-group input, .prf-form-group select, .prf-form-group textarea {
+  padding: 9px 14px;
+  border: 1px solid #D1D5DB;
+  border-radius: 10px;
+  font-size: 13.5px;
+  outline: none;
+}
+
+.prf-form-group input:focus, .prf-form-group select:focus, .prf-form-group textarea:focus {
+  border-color: #1A7A2E;
+  box-shadow: 0 0 0 3px rgba(26, 122, 46, 0.1);
+}
+
+.prf-modal__submit {
+  width: 100%;
+  padding: 10px 0;
+  background: #1A7A2E;
+  color: #ffffff;
+  border: none;
+  border-radius: 20px;
+  font-size: 13.5px;
+  font-weight: 800;
+  cursor: pointer;
+  margin-top: 8px;
+}

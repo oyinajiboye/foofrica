@@ -6,11 +6,20 @@ import type { AuthUser } from '../types'
 declare module 'fastify' {
   interface FastifyRequest {
     user: AuthUser
+    authIdentity: { id: string; email?: string }
   }
 }
 
 // Extracts and verifies the Supabase JWT from Authorization header
 const authPlugin: FastifyPluginAsync = async (fastify) => {
+  fastify.decorate('authenticateIdentity', async (request: FastifyRequest, reply: FastifyReply) => {
+    const token = request.headers.authorization?.startsWith('Bearer ') ? request.headers.authorization.slice(7) : null
+    if (!token) { reply.code(401).send({ message: 'Authentication required' }); return }
+    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
+    if (error || !user) { reply.code(401).send({ message: 'Invalid or expired token' }); return }
+    request.authIdentity = { id: user.id, email: user.email }
+  })
+
   fastify.decorate('authenticate', async (request: FastifyRequest, reply: FastifyReply) => {
     const authHeader = request.headers.authorization
     if (!authHeader?.startsWith('Bearer ')) {
@@ -85,6 +94,7 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
 
 declare module 'fastify' {
   interface FastifyInstance {
+    authenticateIdentity: (request: FastifyRequest, reply: FastifyReply) => Promise<void>
     authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>
     optionalAuth: (request: FastifyRequest, reply: FastifyReply) => Promise<void>
   }

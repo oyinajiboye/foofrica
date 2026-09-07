@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import type { FastifyPluginAsync } from 'fastify'
 import { supabaseAdmin } from '../lib/supabase'
 import { paginationSchema } from '../schemas/profile.schemas'
@@ -283,6 +284,17 @@ const scoutRoutes: FastifyPluginAsync = async (fastify) => {
    * DELETE /api/scouts/shortlists/:shortlistId/players/:playerId
    * Remove a player from a shortlist
    */
+  fastify.put('/shortlists/:shortlistId/players/:playerId', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+    const { shortlistId, playerId } = z.object({ shortlistId: z.string().uuid(), playerId: z.string().uuid() }).parse(request.params)
+    const { notes } = z.object({ notes: z.string().max(2000) }).parse(request.body)
+    const { data: shortlist } = await supabaseAdmin.from('shortlists').select('scout_id').eq('id', shortlistId).single()
+    if (request.user.user_type !== 'scout' || shortlist?.scout_id !== request.user.id) return reply.code(403).send({ message: 'Unauthorized' })
+    const { data, error } = await supabaseAdmin.from('shortlist_players').update({ notes }).eq('shortlist_id', shortlistId).eq('player_id', playerId).select('player_id').maybeSingle()
+    if (error) return reply.code(500).send({ message: error.message })
+    if (!data) return reply.code(404).send({ message: 'Player is not in this shortlist' })
+    return reply.send({ success: true })
+  })
+
   fastify.delete('/shortlists/:shortlistId/players/:playerId', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { shortlistId, playerId } = request.params as { shortlistId: string; playerId: string }
 

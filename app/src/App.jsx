@@ -41,6 +41,7 @@ import SettingsPage from './pages/SettingsPage'
 
 // Newly Designed & Built Dedicated Pages
 import ClubPage from './pages/ClubPage'
+import DirectoryPage from './pages/DirectoryPage'
 import ScoutWatchlistPage from './pages/ScoutWatchlistPage'
 import DiscoverPage from './pages/DiscoverPage'
 import SinglePostPage from './pages/SinglePostPage'
@@ -90,10 +91,10 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
 
           {/* Onboarding flow */}
-          <Route path="/onboard/user-type" element={<OnboardUserType />} />
-          <Route path="/onboard/identity" element={<OnboardIdentity />} />
-          <Route path="/onboard/interests" element={<OnboardInterests />} />
-          <Route path="/onboard/complete" element={<OnboardComplete />} />
+          <Route path="/onboard/user-type" element={<ProtectedRoute onboarding><OnboardUserType /></ProtectedRoute>} />
+          <Route path="/onboard/identity" element={<ProtectedRoute onboarding><OnboardIdentity /></ProtectedRoute>} />
+          <Route path="/onboard/interests" element={<ProtectedRoute onboarding><OnboardInterests /></ProtectedRoute>} />
+          <Route path="/onboard/complete" element={<ProtectedRoute onboarding><OnboardComplete /></ProtectedRoute>} />
 
           {/* Main App Routes */}
           <Route path="/feed" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
@@ -106,13 +107,15 @@ export default function App() {
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
 
           {/* Newly Added Dedicated Views */}
-          <Route path="/clubs" element={<ProtectedRoute><ClubPage /></ProtectedRoute>} />
+          <Route path="/clubs" element={<ProtectedRoute><DirectoryPage key="club" role="club" /></ProtectedRoute>} />
           <Route path="/clubs/:id" element={<ProtectedRoute><ClubPage /></ProtectedRoute>} />
-          <Route path="/scouts" element={<ProtectedRoute><ScoutWatchlistPage /></ProtectedRoute>} />
+          <Route path="/scouts" element={<ProtectedRoute><DirectoryPage key="scout" role="scout" /></ProtectedRoute>} />
           <Route path="/scouts/watchlist" element={<ProtectedRoute><ScoutWatchlistPage /></ProtectedRoute>} />
+          <Route path="/coaches" element={<ProtectedRoute><DirectoryPage key="coach" role="coach" /></ProtectedRoute>} />
           <Route path="/discover" element={<ProtectedRoute><DiscoverPage /></ProtectedRoute>} />
-          <Route path="/players" element={<ProtectedRoute><DiscoverPage /></ProtectedRoute>} />
+          <Route path="/players" element={<ProtectedRoute><DirectoryPage key="player" role="player" /></ProtectedRoute>} />
           <Route path="/post/:id" element={<ProtectedRoute><SinglePostPage /></ProtectedRoute>} />
+        <Route path="*" element={<div style={{padding: 40}}><h1>Page not found</h1><a href="/feed">Go to your feed</a></div>} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

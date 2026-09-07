@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { FootfricaLogo } from './WelcomePage'
 import '../../styles/auth.css'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+import { API_BASE } from '../../lib/api'
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 const EyeIcon = ({ open }) =>
@@ -86,7 +86,7 @@ export default function RegisterPage() {
       if (!res.ok) throw new Error(data.message || 'Registration failed')
 
       // Save partial session (no profile yet — needs onboarding)
-      saveSession(data.data.access_token, data.data.profile)
+      saveSession(data.data.access_token, data.data.profile, data.data.refresh_token)
 
       // Go to onboarding step 1: pick user type
       navigate('/onboard/user-type')

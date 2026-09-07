@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import '../../styles/auth.css'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+import { API_BASE } from '../../lib/api'
 
 const EyeIcon = ({ open }) =>
   open ? (
@@ -80,7 +80,7 @@ export default function LoginPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Login failed')
 
-      saveSession(data.data.access_token, data.data.profile)
+      saveSession(data.data.access_token, data.data.profile, data.data.refresh_token)
 
       // If onboarding not complete, send to onboarding; otherwise feed
       const profile = data.data.profile

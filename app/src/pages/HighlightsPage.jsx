@@ -268,13 +268,18 @@ function CommentItem({ comment }) {
 }
 
 // ─── Comment Drawer ───────────────────────────────────────────────────────────
-function CommentDrawer({ open, onClose, highlight, comments }) {
+function CommentDrawer({ open, onClose, highlight, comments, onSubmit }) {
   const [text, setText] = useState('')
 
-  const handleSubmit = (e) => {
+  const [submitError, setSubmitError] = useState('')
+  const [sending, setSending] = useState(false)
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!text.trim()) return
-    setText('')
+    if (!text.trim() || sending) return
+    setSending(true)
+    try { await onSubmit(text.trim()); setText(''); setSubmitError('') }
+    catch (err) { setSubmitError(err.message) }
+    finally { setSending(false) }
   }
 
   return (
@@ -286,6 +291,7 @@ function CommentDrawer({ open, onClose, highlight, comments }) {
       <div className="hl-comment-drawer__list">
         {comments.map((c) => <CommentItem key={c.id} comment={c} />)}
       </div>
+      {submitError && <p role="alert">{submitError}</p>}
       <form className="hl-comment-drawer__form" onSubmit={handleSubmit}>
         <input
           className="hl-comment-drawer__input"
@@ -294,7 +300,7 @@ function CommentDrawer({ open, onClose, highlight, comments }) {
           onChange={(e) => setText(e.target.value)}
           autoFocus={open}
         />
-        <button type="submit" className="hl-comment-drawer__send" disabled={!text.trim()}>
+        <button type="submit" className="hl-comment-drawer__send" disabled={!text.trim() || sending}>
           <SendIcon />
         </button>
       </form>
@@ -574,10 +580,11 @@ function ReelSlide({ highlight, isActive, onLike, onRepost, onSave, onCommentOpe
 export default function HighlightsPage() {
   const navigate = useNavigate()
   const { user, apiFetch } = useAuth()
-  const [highlights, setHighlights] = useState(MOCK_HIGHLIGHTS)
+  const [highlights, setHighlights] = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [commentOpen, setCommentOpen] = useState(false)
-  const [comments] = useState(MOCK_COMMENTS)
+  const [comments, setComments] = useState([])
+  const [error, setError] = useState('')
   const [muted, setMuted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
@@ -590,14 +597,14 @@ export default function HighlightsPage() {
     if (pageNum === 1) setLoading(true)
     try {
       const res = await apiFetch(`/api/feed/highlights?limit=20&page=${pageNum}`)
-      const data = res?.data ?? []
-      if (data.length > 0) {
+      const data = (res?.data?.data || res?.data || []).map(post => ({ ...post, ...post.video, id: post.id, duration: post.video?.duration_seconds || 0, author: post.author }))
+      {
         setHighlights((prev) => pageNum === 1 ? data : [...prev, ...data])
-        setHasMore(data.length === 20)
+        setHasMore(false)
       }
-    } catch {
-      // Use mock data if API not available
-      setHighlights(MOCK_HIGHLIGHTS)
+    } catch (err) {
+      setError(err.message)
+      setHighlights([])
       setHasMore(false)
     } finally {
       setLoading(false)
@@ -693,11 +700,26 @@ export default function HighlightsPage() {
   }, [apiFetch])
 
   const handleSave = useCallback(async (id, wasSaved) => {
-    setHighlights((prev) => prev.map((h) => h.id === id
-      ? { ...h, is_saved: !wasSaved, saves_count: wasSaved ? h.saves_count - 1 : h.saves_count + 1 }
-      : h
-    ))
-  }, [])
+    try {
+      await apiFetch(`/api/bookmarks/${id}`, { method: wasSaved ? 'DELETE' : 'POST' })
+      setHighlights(prev => prev.map(h => h.id === id ? { ...h, is_saved: !wasSaved } : h))
+    } catch (err) { setError(err.message) }
+  }, [apiFetch])
+
+  useEffect(() => {
+    setComments([])
+    if (!commentOpen || !highlights[currentIndex]) return
+    let cancelled = false
+    apiFetch(`/api/posts/${highlights[currentIndex].id}/comments`).then(res => {
+      if (!cancelled) setComments(res.data?.data || res.data || [])
+    }).catch(err => { if (!cancelled) setError(err.message) })
+    return () => { cancelled = true }
+  }, [commentOpen, currentIndex, highlights, apiFetch])
+
+  const addComment = async content => {
+    const res = await apiFetch(`/api/posts/${highlights[currentIndex].id}/comments`, { method: 'POST', body: JSON.stringify({ content }) })
+    setComments(prev => [...prev, { ...res.data, author: res.data.author || user }])
+  }
 
   const currentHighlight = highlights[currentIndex]
   const displayName = user?.display_name || user?.full_name || 'You'
@@ -745,6 +767,8 @@ export default function HighlightsPage() {
 
       {/* ── Main layout: Center reel contains everything ── */}
       <div className="hl-layout">
+        {error && <p role="alert">{error}</p>}
+        {!loading && highlights.length === 0 && <p style={{color: "white", padding: 32}}>No highlights yet. <a href="/feed">Back to feed</a></p>}
         {/* Center reel container */}
         <div className="hl-reel-container">
           <div
@@ -779,6 +803,7 @@ export default function HighlightsPage() {
           onClose={() => setCommentOpen(false)}
           highlight={currentHighlight}
           comments={comments}
+          onSubmit={addComment}
         />
       </div>
 

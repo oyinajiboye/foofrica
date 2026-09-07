@@ -1235,3 +1235,5 @@
 .msg-safety-card__btn:hover {
   background: #FDE68A;
 }
+
+.ff-modal-backdrop{position:fixed;inset:0;background:#0008;display:grid;place-items:center;padding:20px;z-index:10000}.ff-modal{background:white;color:#17231b;padding:28px;border-radius:16px;width:min(500px,100%);max-height:90vh;overflow:auto}.ff-modal label{display:block;margin:16px 0}.ff-modal input,.ff-modal textarea{display:block;width:100%;padding:12px;border:1px solid #a8b9ad;border-radius:6px;font:inherit;margin-top:6px}.ff-modal textarea{min-height:130px}.ff-modal button{padding:10px 20px;margin:8px 8px 0 0;font:inherit;cursor:pointer}

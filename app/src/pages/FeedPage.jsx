@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import '../styles/feed.css'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+import { API_BASE } from '../lib/api'
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
@@ -152,21 +152,31 @@ function UserTypeBadge({ type }) {
 function ComposeModal({ user, onClose, onPost }) {
   const [text, setText] = useState('')
   const [postType, setPostType] = useState('text')
+  const [files, setFiles] = useState([])
+  const [composeError, setComposeError] = useState('')
   const [loading, setLoading] = useState(false)
   const { apiFetch } = useAuth()
 
   const handleSubmit = async () => {
-    if (!text.trim() && postType === 'text') return
+    if (loading || (!text.trim() && !files.length)) return
     setLoading(true)
+    setComposeError('')
     try {
+      const image_urls = []
+      for (const file of files) {
+        if (file.size > 5 * 1024 * 1024) throw new Error('Each photo must be 5 MB or smaller.')
+        const body = new FormData(); body.append('file', file)
+        const result = await apiFetch('/api/uploads/post-image', { method: 'POST', body })
+        image_urls.push(result.data.image_url)
+      }
       const data = await apiFetch('/api/posts', {
         method: 'POST',
-        body: JSON.stringify({ content: text, post_type: postType }),
+        body: JSON.stringify({ content: text.trim(), post_type: image_urls.length ? 'image' : 'text', image_urls }),
       })
       onPost(data.data)
       onClose()
     } catch (e) {
-      console.error(e)
+      setComposeError(e.message)
     } finally {
       setLoading(false)
     }
@@ -195,17 +205,19 @@ function ComposeModal({ user, onClose, onPost }) {
             </div>
           </div>
         </div>
+        {composeError && <p role="alert" style={{padding:16}}>{composeError}</p>}
+        {postType === 'image' && <label style={{padding:16}}>Choose up to 4 photos<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple onChange={e => setFiles(Array.from(e.target.files || []).slice(0,4))} /></label>}
         <div className="compose-modal__footer">
           <div className="compose-modal__type-btns">
             {[
-              { key: 'video', icon: <VideoIcon />, label: 'Video' },
+
               { key: 'image', icon: <ImageIcon />, label: 'Photos' },
-              { key: 'poll', icon: <PollIcon />, label: 'Poll' },
+
             ].map(({ key, icon, label }) => (
               <button
                 key={key}
                 className={`compose-modal__type-btn ${postType === key ? 'active' : ''}`}
-                onClick={() => setPostType(postType === key ? 'text' : key)}
+                onClick={() => { setPostType(postType === key ? 'text' : key); setFiles([]) }}
                 id={`compose-type-${key}`}
               >
                 {icon} {label}
@@ -215,7 +227,7 @@ function ComposeModal({ user, onClose, onPost }) {
           <button
             className="compose-modal__submit"
             onClick={handleSubmit}
-            disabled={loading || (!text.trim() && postType === 'text')}
+            disabled={loading || (!text.trim() && !files.length)}
             id="compose-submit"
           >
             {loading ? 'Posting…' : 'Post'}
@@ -608,9 +620,8 @@ export default function FeedPage() {
       setPosts((prev) => pageNum === 1 ? newPosts : [...prev, ...newPosts])
       setHasMore(newPosts.length === 10)
     } catch (err) {
-      // Fall back to mock data if API is not connected
-      console.warn('API not available, using mock data:', err.message)
-      setPosts(MOCK_POSTS)
+      showToast(err.message || 'Unable to load your feed. Please try again.')
+      if (pageNum === 1) setPosts([])
       setHasMore(false)
     } finally {
       setLoading(false)
@@ -683,7 +694,7 @@ export default function FeedPage() {
     formData.append('file', file)
     try {
       const token = localStorage.getItem('ff_token')
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/uploads/cover`, {
+      const res = await fetch(`${API_BASE}/api/uploads/cover`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
@@ -703,7 +714,7 @@ export default function FeedPage() {
     formData.append('file', file)
     try {
       const token = localStorage.getItem('ff_token')
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/uploads/avatar`, {
+      const res = await fetch(`${API_BASE}/api/uploads/avatar`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,

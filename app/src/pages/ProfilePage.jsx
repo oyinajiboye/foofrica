@@ -108,7 +108,7 @@ export default function ProfilePage() {
 
   // Determine if viewing own profile or someone else's
   const isOwnProfile = !username || username === user?.username
-  const profileIdentifier = username || user?.username
+  const profileIdentifier = (username && username !== 'me' ? username : null) || user?.username || user?.id
 
   // ── Fetch profile data ──────────────────────────────────────────────────
   const fetchProfile = useCallback(async () => {
@@ -788,54 +788,8 @@ export default function ProfilePage() {
 
           {/* Widget 2: Suggested Players */}
           <div className="prf-widget">
-            <h3 className="prf-widget__title">Suggested Players</h3>
-            <div className="prf-sug-item">
-              <div className="prf-sug-info">
-                <img src="https://images.unsplash.com/photo-1517466787929-bc90951d0974?w=100&q=80" alt="" className="prf-sug-avatar" />
-                <div>
-                  <div className="prf-sug-name">Kwame Mensah</div>
-                  <div className="prf-sug-sub">Midfielder · Accra</div>
-                </div>
-              </div>
-              <button
-                className={`prf-sug-btn ${followingState['Kwame Mensah'] ? 'following' : ''}`}
-                onClick={() => handleFollowToggle('Kwame Mensah')}
-              >
-                {followingState['Kwame Mensah'] ? 'Following' : 'Follow'}
-              </button>
-            </div>
-
-            <div className="prf-sug-item">
-              <div className="prf-sug-info">
-                <img src="https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?w=100&q=80" alt="" className="prf-sug-avatar" />
-                <div>
-                  <div className="prf-sug-name">Chioma Nwosu</div>
-                  <div className="prf-sug-sub">Forward · Lagos</div>
-                </div>
-              </div>
-              <button
-                className={`prf-sug-btn ${followingState['Chioma Nwosu'] ? 'following' : ''}`}
-                onClick={() => handleFollowToggle('Chioma Nwosu')}
-              >
-                {followingState['Chioma Nwosu'] ? 'Following' : 'Follow'}
-              </button>
-            </div>
-
-            <div className="prf-sug-item">
-              <div className="prf-sug-info">
-                <img src="https://images.unsplash.com/photo-1526232761682-d26e03ac148e?w=100&q=80" alt="" className="prf-sug-avatar" />
-                <div>
-                  <div className="prf-sug-name">Ada Okonkwo</div>
-                  <div className="prf-sug-sub">Defender · Abuja</div>
-                </div>
-              </div>
-              <button
-                className={`prf-sug-btn ${followingState['Ada Okonkwo'] ? 'following' : ''}`}
-                onClick={() => handleFollowToggle('Ada Okonkwo')}
-              >
-                {followingState['Ada Okonkwo'] ? 'Following' : 'Follow'}
-              </button>
-            </div>
+            <h3 className="prf-widget__title">Suggested profiles</h3>
+            {suggestions.map(person => <div className="prf-sug-item" key={person.id}><a href={`/profile/${person.username}`}>{person.display_name}</a><span>{person.user_type}</span></div>)}
           </div>
 
           {/* Widget 3: Availability */}
@@ -916,7 +870,7 @@ export default function ProfilePage() {
               className="prf-modal__submit"
               onClick={async () => {
                 try {
-                  await apiFetch(`/api/profiles/${profile?.id || user?.id}`, {
+                  await apiFetch('/api/profiles/me', {
                     method: 'PUT',
                     body: JSON.stringify({
                       display_name: profileData.display_name,

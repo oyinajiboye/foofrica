@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { supabaseAdmin } from '../lib/supabase'
+import { supabaseAdmin, createAuthClient } from '../lib/supabase'
 import { cacheDelete, cacheKeys } from '../lib/redis'
 import {
   updateSettingsSchema,
@@ -79,7 +79,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     const userId = request.user.id
 
     // Verify current password by attempting sign-in
-    const { error: verifyError } = await supabaseAdmin.auth.signInWithPassword({
+    const { error: verifyError } = await createAuthClient().auth.signInWithPassword({
       email: request.user.email!,
       password,
     })
@@ -115,7 +115,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     const userId = request.user.id
 
     // Verify current password
-    const { error: verifyError } = await supabaseAdmin.auth.signInWithPassword({
+    const { error: verifyError } = await createAuthClient().auth.signInWithPassword({
       email: request.user.email!,
       password: current_password,
     })
@@ -255,7 +255,7 @@ const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     // Verify password
-    const { error: verifyError } = await supabaseAdmin.auth.signInWithPassword({
+    const { error: verifyError } = await createAuthClient().auth.signInWithPassword({
       email: request.user.email!,
       password,
     })

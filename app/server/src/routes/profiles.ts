@@ -24,8 +24,7 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
     const { identifier } = request.params as { identifier: string }
     const cacheKey = cacheKeys.profile(identifier)
 
-    const cached = await cacheGet(cacheKey)
-    if (cached) return reply.send({ success: true, data: cached })
+    // Follow state is viewer-specific; do not serve it from a shared profile cache.
 
     const isUuid = /^[0-9a-f-]{36}$/.test(identifier)
     const query = supabaseAdmin.from('profiles').select(`
@@ -61,8 +60,9 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
       is_following = !!follow
     }
 
-    const result = { ...data, is_following }
-    await cacheSet(cacheKey, result, TTL.profile)
+    const { fcm_token, is_admin, ...publicProfile } = data
+    const result = { ...publicProfile, is_following }
+    // A shared cache must never contain is_following.
 
     return reply.send({ success: true, data: result })
   })
@@ -260,6 +260,15 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
    * POST /api/profiles/:id/career
    * Add a career entry (players only)
    */
+  for (const [suffix, table, column] of [['career', 'career_history', 'start_date'], ['stats', 'player_stats', 'season']]) {
+    fastify.get(`/:id/${suffix}`, async (request, reply) => {
+      const { id } = request.params as { id: string }
+      const { data, error } = await supabaseAdmin.from(table).select('*').eq('player_id', id).order(column, { ascending: false })
+      if (error) return reply.code(500).send({ message: error.message })
+      return reply.send({ success: true, data: data ?? [] })
+    })
+  }
+
   fastify.post('/:id/career', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     if (request.user.user_type !== 'player') {
       return reply.status(403).send({ message: 'Only players can add career entries' })

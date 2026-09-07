@@ -31,3 +31,10 @@ export function createUserClient(accessToken: string) {
     },
   })
 }
+
+// Password and refresh calls must not mutate the shared service-role session.
+export function createAuthClient() {
+  return createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+}

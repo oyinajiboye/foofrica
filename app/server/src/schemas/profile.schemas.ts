@@ -4,6 +4,7 @@ const POSITIONS = ['GK', 'CB', 'LB', 'RB', 'CDM', 'CM', 'CAM', 'LW', 'RW', 'ST',
 const DOMINANT_FEET = ['left', 'right', 'both'] as const
 
 export const updateProfileSchema = z.object({
+  interests: z.array(z.string().max(60)).max(20).optional(),
   display_name: z.string().min(2).max(60).optional(),
   bio: z.string().max(300).optional(),
   avatar_url: z.string().url().optional(),

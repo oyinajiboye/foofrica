@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import '../styles/messages.css'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+import { API_BASE } from '../lib/api'
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
@@ -356,6 +356,11 @@ export default function MessagesPage() {
   const [toastMessage, setToastMessage] = useState(null)
   const [followingState, setFollowingState] = useState({})
   const [loadingConvos, setLoadingConvos] = useState(true)
+  const [newChat, setNewChat] = useState(false)
+  const [recipient, setRecipient] = useState('')
+  const [firstMessage, setFirstMessage] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [reload, setReload] = useState(0)
 
   const feedRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -414,7 +419,7 @@ export default function MessagesPage() {
       }
     }
     loadConversations()
-  }, [apiFetch])
+  }, [apiFetch, reload])
 
   // ── Fetch messages when active conversation changes ────────────────────
   useEffect(() => {
@@ -422,7 +427,7 @@ export default function MessagesPage() {
     if (messagesMap[activeConvId]) return // already loaded
     const loadMessages = async () => {
       try {
-        const res = await apiFetch(`/api/messages/${activeConvId}?limit=50`)
+        const res = await apiFetch(`/api/messages/conversations/${activeConvId}?limit=50`)
         const msgs = res.data?.data || res.data || []
         const mapped = msgs.map((m) => ({
           id: m.id,
@@ -430,7 +435,7 @@ export default function MessagesPage() {
           type: m.message_type || 'text',
           content: m.content || '',
           time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: m.is_read ? 'read' : 'sent',
+          status: m.read_at ? 'read' : 'sent',
         }))
         setMessagesMap(prev => ({ ...prev, [activeConvId]: mapped }))
       } catch (e) {
@@ -481,7 +486,7 @@ export default function MessagesPage() {
 
     // Send to API
     try {
-      const res = await apiFetch(`/api/messages/${activeConvId}`, {
+      const res = await apiFetch(`/api/messages/conversations/${activeConvId}`, {
         method: 'POST',
         body: JSON.stringify({ content }),
       })
@@ -493,79 +498,30 @@ export default function MessagesPage() {
         ),
       }))
     } catch (e) {
-      showToast('Failed to send message')
+      setMessagesMap(prev => ({ ...prev, [activeConvId]: (prev[activeConvId] || []).filter(m => m.id !== tempMsg.id) }))
+      setInputText(content)
+      showToast(e.message || 'Failed to send message')
     }
   }
 
   // Quick Action Pill handlers
-  const handleShareHighlight = () => {
-    const cardMsg = {
-      id: `msg-${Date.now()}`,
-      sender: 'me',
-      type: 'highlight',
-      title: 'Match Highlights vs City FC',
-      tag: 'Highlight',
-      duration: '1:10',
-      thumbnail: 'https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?w=800&q=80',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      status: 'sent',
-    }
-    setMessagesMap((prev) => ({
-      ...prev,
-      [activeConvId]: [...(prev[activeConvId] || []), cardMsg],
-    }))
-    showToast('Highlight shared in chat!')
-  }
+  const handleShareHighlight = () => setInputText('Take a look at this highlight: ')
+  const handleSendTrialInvite = () => setInputText('Trial invitation\nDate: \nTime: \nVenue: \nWhat to bring: ')
+  const handleShareProfile = () => setInputText(`${window.location.origin}/profile/${user.username}`)
+  const handleAttachFile = () => showToast('Share a link to your document in the message box.')
 
-  const handleSendTrialInvite = () => {
-    const inviteMsg = {
-      id: `msg-${Date.now()}`,
-      sender: 'me',
-      type: 'trial_invite',
-      clubName: activeConv.participant.display_name,
-      date: 'Saturday, 21 June 2026',
-      trialTime: '09:00 AM',
-      location: 'Mainland Football Stadium, Lagos',
-      bring: 'Boots, Passport ID, and Kit',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    }
-    setMessagesMap((prev) => ({
-      ...prev,
-      [activeConvId]: [...(prev[activeConvId] || []), inviteMsg],
-    }))
-    showToast('Trial invitation sent!')
-  }
-
-  const handleShareProfile = () => {
-    const sysMsg = {
-      id: `msg-${Date.now()}`,
-      sender: 'system',
-      type: 'system',
-      content: `Shared Tunde Adebayo's Player Profile with ${activeConv.participant.display_name}.`,
-    }
-    setMessagesMap((prev) => ({
-      ...prev,
-      [activeConvId]: [...(prev[activeConvId] || []), sysMsg],
-    }))
-    showToast('Profile shared!')
-  }
-
-  const handleAttachFile = (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const fileMsg = {
-      id: `msg-${Date.now()}`,
-      sender: 'me',
-      type: 'text',
-      content: `📄 Attached: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      status: 'sent',
-    }
-    setMessagesMap((prev) => ({
-      ...prev,
-      [activeConvId]: [...(prev[activeConvId] || []), fileMsg],
-    }))
-    showToast(`Attached ${file.name}`)
+  const startConversation = async e => {
+    e.preventDefault()
+    if (creating) return
+    setCreating(true)
+    try {
+      const profile = await apiFetch(`/api/profiles/${encodeURIComponent(recipient.replace(/^@/, '').trim())}`)
+      const res = await apiFetch('/api/messages/conversations', { method: 'POST', body: JSON.stringify({ recipient_id: profile.data.id, message: firstMessage.trim() }) })
+      setActiveConvId(res.data.conversation_id)
+      setReload(n => n + 1)
+      setNewChat(false); setRecipient(''); setFirstMessage('')
+    } catch (err) { showToast(err.message) }
+    finally { setCreating(false) }
   }
 
   // Context menu actions
@@ -586,9 +542,13 @@ export default function MessagesPage() {
     setContextMenuConvId(null)
   }
 
-  const handleDeleteConv = (convId) => {
-    setConversations((prev) => prev.filter((c) => c.id !== convId))
-    showToast('Conversation deleted')
+  const handleDeleteConv = async (convId) => {
+    try {
+      await apiFetch(`/api/messages/conversations/${convId}`, { method: 'DELETE' })
+      setConversations(prev => prev.filter(c => c.id !== convId))
+      if (activeConvId === convId) setActiveConvId(null)
+      showToast('Conversation removed')
+    } catch (err) { showToast(err.message) }
     setContextMenuConvId(null)
   }
 
@@ -646,13 +606,18 @@ export default function MessagesPage() {
         </div>
       </header>
 
+      {newChat && <div className="ff-modal-backdrop"><form className="ff-modal" onSubmit={startConversation} role="dialog" aria-modal="true" aria-label="New message">
+        <h2>New message</h2><label>Recipient username<input required autoFocus value={recipient} onChange={e => setRecipient(e.target.value)} /></label>
+        <label>Message<textarea required maxLength={2000} value={firstMessage} onChange={e => setFirstMessage(e.target.value)} /></label>
+        <button disabled={creating || !firstMessage.trim()} type="submit">{creating ? 'Sending…' : 'Send message'}</button><button type="button" onClick={() => setNewChat(false)}>Cancel</button>
+      </form></div>}
       {/* ── Main Content Area (3 Columns) ─────────────────────────────────── */}
       <div className="msg-container">
         
         {/* ── Left Column: Conversation Sidebar ───────────────────────────── */}
         <aside className="msg-sidebar">
           <div className="msg-sidebar__header">
-            <h2 className="msg-sidebar__title">Messages</h2>
+            <h2 className="msg-sidebar__title">Messages</h2><button onClick={() => setNewChat(true)}>New message</button>
             <button className="msg-sidebar__filter-btn" onClick={(e) => {
               e.stopPropagation()
               const roles = ['All', 'Unread', 'Academy', 'Coach', 'Scout', 'Player', 'Fan']

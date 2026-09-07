@@ -31,11 +31,7 @@ export async function createStreamUploadUrl(options: {
   uploaderId: string
 }): Promise<StreamUploadUrlResult | null> {
   if (!isConfigured()) {
-    console.warn('⚠️  Cloudflare not configured — returning mock upload URL')
-    return {
-      uploadUrl: 'https://mock-upload-url.example.com',
-      uid: `mock-${Date.now()}`,
-    }
+    throw Object.assign(new Error('Video uploads are not configured.'), { statusCode: 503 })
   }
 
   const response = await fetch(`${CF_BASE}/stream/direct_upload`, {

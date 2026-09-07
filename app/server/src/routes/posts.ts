@@ -23,6 +23,7 @@ const postRoutes: FastifyPluginAsync = async (fastify) => {
         video_id: body.video_id ?? null,
         image_urls: body.image_urls ?? [],
         repost_of: body.repost_of ?? null,
+        tags: body.tags ?? [],
         hashtags: body.hashtags ?? [],
         mentions: body.mentions ?? [],
         visibility: body.visibility,

@@ -38,27 +38,12 @@ const blockRoutes: FastifyPluginAsync = async (fastify) => {
     }
     if (error) return reply.status(500).send({ message: error.message })
 
-    // Auto-remove follows in both directions
-    await Promise.all([
-      supabaseAdmin
-        .from('follows')
-        .delete()
-        .eq('follower_id', blockerId)
-        .eq('following_id', targetId),
-      supabaseAdmin
-        .from('follows')
-        .delete()
-        .eq('follower_id', targetId)
-        .eq('following_id', blockerId),
-    ])
-
-    // Update follower/following counts
-    await Promise.all([
-      supabaseAdmin.rpc('decrement_following_count', { profile_id: blockerId }),
-      supabaseAdmin.rpc('decrement_follower_count', { profile_id: targetId }),
-      supabaseAdmin.rpc('decrement_following_count', { profile_id: targetId }),
-      supabaseAdmin.rpc('decrement_follower_count', { profile_id: blockerId }),
-    ]).catch(() => {}) // Counts may already be 0
+    // Count only relationships that were actually removed.
+    for(const [follower,following] of [[blockerId,targetId],[targetId,blockerId]]){
+      const {data:removed,error:removeError}=await supabaseAdmin.from('follows').delete().eq('follower_id',follower).eq('following_id',following).select('follower_id')
+      if(removeError)return reply.code(500).send({message:'Block saved but follow cleanup failed.'})
+      if(removed?.length)await Promise.all([supabaseAdmin.rpc('decrement_following_count',{profile_id:follower}),supabaseAdmin.rpc('decrement_follower_count',{profile_id:following})])
+    }
 
     // Bust caches
     await Promise.all([

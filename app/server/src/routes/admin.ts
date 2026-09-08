@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import type { FastifyPluginAsync } from 'fastify'
 import { supabaseAdmin } from '../lib/supabase'
 import { syncPlayerToAlgolia } from '../services/search.service'
@@ -182,10 +183,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.put('/reports/:id', { preHandler: [requireAdmin] }, async (request, reply) => {
     const { id } = request.params as { id: string }
-    const { action, note } = request.body as {
-      action: 'approved' | 'dismissed'
-      note?: string
-    }
+    const {action,note}=z.object({action:z.enum(['approved','dismissed']),note:z.string().max(1000).optional()}).parse(request.body)
 
     const { data, error } = await supabaseAdmin
       .from('reports')

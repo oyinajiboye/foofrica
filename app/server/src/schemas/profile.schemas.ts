@@ -81,8 +81,8 @@ export const endorsePlayerSchema = z.object({
 })
 
 export const paginationSchema = z.object({
-  page: z.string().default('1').transform(Number),
-  limit: z.string().default('20').transform(Number),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
 })
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>

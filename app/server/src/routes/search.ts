@@ -1,17 +1,21 @@
+import { canViewProfile, publicProfile, visiblePosts } from '../services/access.service'
 import type { FastifyPluginAsync } from 'fastify'
 import { searchPlayers, searchProfiles } from '../services/search.service'
 import { supabaseAdmin } from '../lib/supabase'
 import { playerSearchSchema, generalSearchSchema } from '../schemas/search.schemas'
 
 const searchRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.addHook('preHandler',fastify.optionalAuth)
   /**
    * GET /api/search/players
    * Multi-filter player search (Algolia primary, Postgres fallback)
    */
   fastify.get('/players', async (request, reply) => {
     const params = playerSearchSchema.parse(request.query)
-    const result = await searchPlayers(params)
-    return reply.send({ success: true, data: result })
+    const query=new URLSearchParams({role:'player'})
+    for(const key of ['q','position','nationality','min_age','max_age','page','limit'])if((params as any)[key]!==undefined)query.set(key,String((params as any)[key]))
+    if(params.dominant_foot)query.set('foot',params.dominant_foot)
+    return reply.redirect('/api/directory?'+query)
   })
 
   /**
@@ -25,8 +29,8 @@ const searchRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({ message: 'Search query q is required' })
     }
 
-    const profiles = await searchProfiles(q.trim(), Number(limit))
-    return reply.send({ success: true, data: profiles })
+    const profiles = await searchProfiles(q.trim().replace(/[^\p{L}\p{N} _-]/gu,''), Math.max(1,Math.min(50,Number(limit)||10)))
+    return reply.send({ success: true, data: (await Promise.all(profiles.map(async p=>await canViewProfile(request.user?.id,p.id)?await publicProfile(request.user?.id,p):null))).filter(Boolean) })
   })
 
   /**
@@ -71,7 +75,7 @@ const searchRoutes: FastifyPluginAsync = async (fastify) => {
     return reply.send({
       success: true,
       data: {
-        data: data ?? [],
+        data: await visiblePosts(request.user?.id,data ?? []),
         total: count ?? 0,
         page: p,
         limit: l,

@@ -1,9 +1,11 @@
+import { canViewProfile, publicProfile, protectProfilePayload } from '../services/access.service'
 import { z } from 'zod'
 import type { FastifyPluginAsync } from 'fastify'
 import { supabaseAdmin } from '../lib/supabase'
 import { paginationSchema } from '../schemas/profile.schemas'
 
 const scoutRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.addHook('preSerialization',async(req,_reply,payload)=>protectProfilePayload(req.user?.id,payload))
   /**
    * GET /api/scouts/:id
    * Get a scout's public profile
@@ -29,7 +31,8 @@ const scoutRoutes: FastifyPluginAsync = async (fastify) => {
       })
     }
 
-    return reply.send({ success: true, data })
+    if(!await canViewProfile(request.user?.id,id))return reply.code(403).send({message:'Profile unavailable'})
+    return reply.send({ success: true, data:await publicProfile(request.user?.id,data) })
   })
 
   // ─── Shortlists ──────────────────────────────────────────────────────────────
@@ -286,7 +289,7 @@ const scoutRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.put('/shortlists/:shortlistId/players/:playerId', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { shortlistId, playerId } = z.object({ shortlistId: z.string().uuid(), playerId: z.string().uuid() }).parse(request.params)
-    const { notes } = z.object({ notes: z.string().max(2000) }).parse(request.body)
+    const { notes } = z.object({ notes: z.string().max(500) }).parse(request.body)
     const { data: shortlist } = await supabaseAdmin.from('shortlists').select('scout_id').eq('id', shortlistId).single()
     if (request.user.user_type !== 'scout' || shortlist?.scout_id !== request.user.id) return reply.code(403).send({ message: 'Unauthorized' })
     const { data, error } = await supabaseAdmin.from('shortlist_players').update({ notes }).eq('shortlist_id', shortlistId).eq('player_id', playerId).select('player_id').maybeSingle()

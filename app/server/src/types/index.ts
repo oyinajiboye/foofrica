@@ -26,6 +26,9 @@ export type NotificationType =
   | 'endorsement'
   | 'verification'
   | 'shortlist'
+  | 'opportunity'
+  | 'application'
+  | 'squad'
 
 export type EndorsementSkill =
   | 'pace'

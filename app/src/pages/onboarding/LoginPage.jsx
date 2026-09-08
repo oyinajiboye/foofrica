@@ -1,3 +1,4 @@
+import { startOAuth } from '../../lib/oauth'
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
@@ -192,7 +193,7 @@ export default function LoginPage() {
               type="button"
               className="btn btn-outline btn-social"
               id="login-google"
-              onClick={() => alert('Google OAuth — coming soon')}
+              onClick={() => startOAuth('google').catch(e => setError(e.message))}
             >
               <GoogleIcon /> Continue with Google
             </button>
@@ -200,7 +201,7 @@ export default function LoginPage() {
               type="button"
               className="btn btn-dark btn-social"
               id="login-apple"
-              onClick={() => alert('Apple OAuth — coming soon')}
+              onClick={() => startOAuth('apple').catch(e => setError(e.message))}
             >
               <AppleIcon /> Continue with Apple
             </button>

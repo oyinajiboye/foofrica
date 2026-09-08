@@ -1,8 +1,13 @@
+import { canViewProfile, protectProfilePayload } from '../services/access.service'
 import type { FastifyPluginAsync } from 'fastify'
 import { supabaseAdmin } from '../lib/supabase'
 import { paginationSchema } from '../schemas/profile.schemas'
 
 const coachRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.addHook('preHandler',fastify.optionalAuth)
+  fastify.addHook('preHandler',async(req,reply)=>{const id=(req.params as {id?:string}).id;if(id&&!await canViewProfile(req.user?.id,id))return reply.code(403).send({message:'Profile unavailable'})})
+  fastify.addHook('preSerialization',async(req,_reply,payload)=>protectProfilePayload(req.user?.id,payload))
+
   /**
    * GET /api/coaches/:id
    * Get a coach's public profile

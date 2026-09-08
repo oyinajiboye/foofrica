@@ -1,3 +1,4 @@
+import UploadHighlightPage from './pages/UploadHighlightPage'
 import { useState, useCallback } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
@@ -40,8 +41,9 @@ import SearchPage from './pages/SearchPage'
 import SettingsPage from './pages/SettingsPage'
 
 // Newly Designed & Built Dedicated Pages
-import ClubPage from './pages/ClubPage'
+import RecoveryPage from './pages/onboarding/RecoveryPage'
 import DirectoryPage from './pages/DirectoryPage'
+import RecruitmentPage from './pages/RecruitmentPage'
 import ScoutWatchlistPage from './pages/ScoutWatchlistPage'
 import DiscoverPage from './pages/DiscoverPage'
 import SinglePostPage from './pages/SinglePostPage'
@@ -90,12 +92,15 @@ export default function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/login" element={<LoginPage />} />
 
+          {['forgot-password','reset-password','auth/callback'].map(path=><Route key={path} path={'/'+path} element={<RecoveryPage key={path}/>}/>)}
           {/* Onboarding flow */}
           <Route path="/onboard/user-type" element={<ProtectedRoute onboarding><OnboardUserType /></ProtectedRoute>} />
           <Route path="/onboard/identity" element={<ProtectedRoute onboarding><OnboardIdentity /></ProtectedRoute>} />
           <Route path="/onboard/interests" element={<ProtectedRoute onboarding><OnboardInterests /></ProtectedRoute>} />
           <Route path="/onboard/complete" element={<ProtectedRoute onboarding><OnboardComplete /></ProtectedRoute>} />
 
+          {['opportunities','applications','verification','compare','cv','analytics','squad','alerts','safety','saved','moderation'].map(path => <Route key={path} path={'/'+path} element={<ProtectedRoute><RecruitmentPage key={path}/></ProtectedRoute>}/>)}
+          <Route path='/upload-highlight' element={<ProtectedRoute><UploadHighlightPage/></ProtectedRoute>}/>
           {/* Main App Routes */}
           <Route path="/feed" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
           <Route path="/highlights" element={<ProtectedRoute><HighlightsPage /></ProtectedRoute>} />
@@ -108,7 +113,7 @@ export default function App() {
 
           {/* Newly Added Dedicated Views */}
           <Route path="/clubs" element={<ProtectedRoute><DirectoryPage key="club" role="club" /></ProtectedRoute>} />
-          <Route path="/clubs/:id" element={<ProtectedRoute><ClubPage /></ProtectedRoute>} />
+          <Route path="/clubs/:id" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/scouts" element={<ProtectedRoute><DirectoryPage key="scout" role="scout" /></ProtectedRoute>} />
           <Route path="/scouts/watchlist" element={<ProtectedRoute><ScoutWatchlistPage /></ProtectedRoute>} />
           <Route path="/coaches" element={<ProtectedRoute><DirectoryPage key="coach" role="coach" /></ProtectedRoute>} />

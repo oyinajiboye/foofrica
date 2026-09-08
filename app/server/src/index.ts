@@ -10,6 +10,8 @@ import authPlugin from './plugins/auth'
 // ─── Routes ───────────────────────────────────────────────────────────────────
 import authRoutes from './routes/auth'
 import directoryRoutes from './routes/directory'
+import recruitmentRoutes from './routes/recruitment'
+import pollRoutes from './routes/polls'
 import profileRoutes from './routes/profiles'
 import playerRoutes from './routes/players'
 import clubRoutes from './routes/clubs'
@@ -100,6 +102,8 @@ export async function build() {
 
 
   // ── API Routes ────────────────────────────────────────────────────────────
+  await server.register(pollRoutes, {prefix:'/api/polls'})
+  await server.register(recruitmentRoutes, { prefix: '/api/recruitment' })
   await server.register(directoryRoutes, { prefix: '/api/directory' })
   await server.register(authRoutes,         { prefix: '/api/auth' })
   await server.register(profileRoutes,      { prefix: '/api/profiles' })

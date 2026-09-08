@@ -1,6 +1,7 @@
+import { env } from '../config/env'
 import { z } from 'zod'
 import type { FastifyPluginAsync } from 'fastify'
-import { supabaseAdmin, createAuthClient } from '../lib/supabase'
+import { supabaseAdmin, createAuthClient, createPkceClient } from '../lib/supabase'
 import {
   registerSchema,
   loginSchema,
@@ -10,6 +11,41 @@ import {
 } from '../schemas/auth.schemas'
 
 const authRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.post('/oauth/:provider', async (request, reply) => {
+    const { provider } = z.object({ provider: z.enum(['google', 'apple']) }).parse(request.params)
+    const pkce = createPkceClient()
+    const { data, error } = await pkce.client.auth.signInWithOAuth({ provider, options: {
+      redirectTo: `${env.FRONTEND_URL}/auth/callback`, skipBrowserRedirect: true,
+    } })
+    if (error || !data.url) return reply.code(400).send({ message: 'This sign-in provider is unavailable.' })
+    return { success: true, data: { url: data.url, verifier: pkce.verifier() } }
+  })
+  fastify.post('/forgot-password', async (request, reply) => {
+    const { email } = z.object({ email: z.string().email().max(254) }).parse(request.body)
+    const pkce = createPkceClient()
+    const { error } = await pkce.client.auth.resetPasswordForEmail(email, { redirectTo: `${env.FRONTEND_URL}/reset-password` })
+    // Same response for unknown addresses to prevent account enumeration.
+    if (error) request.log.warn('Password recovery delivery was not accepted')
+    return { success: true, data: { verifier: pkce.verifier(), message: 'If an account exists, a reset link will arrive shortly. Open it in this browser.' } }
+  })
+  fastify.post('/exchange', async (request, reply) => {
+    const { code, verifier } = z.object({ code: z.string().min(1).max(2048), verifier: z.string().min(32).max(256) }).parse(request.body)
+    const { data, error } = await createPkceClient(verifier).client.auth.exchangeCodeForSession(code)
+    if (error || !data.session) return reply.code(401).send({ message: 'This sign-in link has expired or was already used. Please start again.' })
+    const { data: profile, error: profileError } = await supabaseAdmin.from('profiles').select('*').eq('id', data.user.id).maybeSingle()
+    if (profileError) return reply.code(503).send({ message: 'Account data is unavailable. Please try again.' })
+    return { success: true, data: { access_token: data.session.access_token, refresh_token: data.session.refresh_token, profile, needs_onboarding: !profile } }
+  })
+  fastify.post('/reset-password', { preHandler: [fastify.authenticateIdentity] }, async (request, reply) => {
+    const { password, refresh_token } = z.object({ password: z.string().min(8).max(128), refresh_token: z.string().min(1) }).parse(request.body)
+    const client = createAuthClient()
+    const { data: session, error } = await client.auth.setSession({ access_token: request.headers.authorization!.slice(7), refresh_token })
+    if (error || session.user?.id !== request.authIdentity.id) return reply.code(401).send({ message: 'Please request a new reset link.' })
+    const result = await client.auth.updateUser({ password })
+    if (result.error) return reply.code(400).send({ message: result.error.message })
+    return { success: true }
+  })
+
   /**
    * POST /api/auth/register
    * Create a new user account and return a session immediately.

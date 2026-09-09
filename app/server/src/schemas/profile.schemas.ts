@@ -12,6 +12,10 @@ export const updateProfileSchema = z.object({
 })
 
 export const updatePlayerProfileSchema = z.object({
+  availability: z.enum(['not_specified','open_to_trials','open_to_transfer','unavailable']).optional(),
+  willing_to_relocate: z.boolean().optional(),
+  preferred_location: z.string().max(120).optional(),
+  available_from: z.string().date().nullable().optional(),
   full_name: z.string().min(2).max(100).optional(),
   date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   nationality: z.string().max(60).optional(),

@@ -80,8 +80,8 @@ const recruitmentRoutes: FastifyPluginAsync = async (app) => {
         const { status } = z.object({ status: applicationStatus }).parse(req.body);
         const { data: record, error } = await db.from('applications').select('*,opportunity:opportunities(club_id)').eq('id', id).single();
         fail(error);
-        const applicant = record?.player_id === req.user.id;
-        const owner = record?.opportunity?.club_id === req.user.id;
+        const applicant = req.user.user_type === 'player' && record?.player_id === req.user.id;
+        const owner = req.user.user_type === 'club' && record?.opportunity?.club_id === req.user.id;
         if (!record || (!applicant && !owner))
             return reply.code(403).send({ message: 'Not authorized.' });
         if (!canTransitionApplication(record.status, status, applicant))

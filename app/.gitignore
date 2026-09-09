@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# Local credentials and Supabase CLI state
+.env
+.env.*
+!.env.example
+supabase/.temp/
+server/supabase/.temp/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

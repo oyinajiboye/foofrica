@@ -51,6 +51,11 @@ export async function createNotification(payload: NotificationPayload) {
   if(settingsError)throw new Error('Unable to check notification preferences')
   const preference:Record<string,string>={like:'notify_likes',comment:'notify_comments',follow:'notify_follows',message:'notify_messages',mention:'notify_mentions',endorsement:'notify_endorsements',shortlist:'notify_shortlists'}
   if(settings?.[preference[payload.type]]===false)return
+  if(payload.type==='message' && payload.entityId){
+    const {data:p,error:e}=await supabaseAdmin.from('conversation_preferences').select('muted').eq('conversation_id',payload.entityId).eq('user_id',payload.recipientId).maybeSingle()
+    if(e)throw new Error('Unable to check conversation preferences')
+    if(p?.muted)return
+  }
   // Insert notification record
   const { data: notification } = await supabaseAdmin
     .from('notifications')

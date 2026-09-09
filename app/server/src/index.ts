@@ -1,3 +1,5 @@
+import accountData from './routes/accountData'
+import conversationControls from './routes/conversationControls'
 import { ZodError } from 'zod'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
@@ -102,6 +104,8 @@ export async function build() {
 
 
   // ── API Routes ────────────────────────────────────────────────────────────
+  await server.register(accountData,{prefix:'/api/account-data'})
+  await server.register(conversationControls,{prefix:'/api/conversation-controls'})
   await server.register(pollRoutes, {prefix:'/api/polls'})
   await server.register(recruitmentRoutes, { prefix: '/api/recruitment' })
   await server.register(directoryRoutes, { prefix: '/api/directory' })

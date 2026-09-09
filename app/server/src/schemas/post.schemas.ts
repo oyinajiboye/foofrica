@@ -21,6 +21,7 @@ export const createPostSchema = z.object({
 .refine(data=>data.post_type!=='image'||!!data.image_urls?.length,{message:'Image post requires photos'})
 
 export const createCommentSchema = z.object({
+  parent_id: z.string().uuid().optional(),
   content: z.string().min(1).max(500),
   mentions: z.array(z.string().uuid()).max(5).optional(),
 })

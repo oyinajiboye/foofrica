@@ -20,7 +20,6 @@ import Spotlight from './components/Spotlight'
 import MarketStats from './components/MarketStats'
 import Waitlist from './components/Waitlist'
 import Footer from './components/Footer'
-import Admin from './pages/Admin'
 
 // Onboarding pages
 import WelcomePage from './pages/onboarding/WelcomePage'

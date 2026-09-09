@@ -1,3 +1,4 @@
+import AppHeader from '../components/AppHeader'
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +14,7 @@ export default function SinglePostPage() {
       user,
       apiFetch
     } = useAuth();
+  const [replyTo,setReplyTo]=useState(null);
   const [post, setPost] = useState(null),
     [comments, setComments] = useState([]),
     [text, setText] = useState(''),
@@ -45,7 +47,7 @@ export default function SinglePostPage() {
       setBusy(false);
     }
   };
-  return <div className='ff-workspace'><header className='ff-topbar'><Link className='ff-brand' to='/feed'>footfrica</Link><nav><Link to='/highlights'>Highlights</Link><Link to='/saved'>Saved posts</Link><Link to='/safety'>Report content</Link></nav></header><main className='ff-work-main' style={{
+  return <div className='ff-workspace'><AppHeader/><main className='ff-work-main' style={{
       maxWidth: 850,
       margin: 'auto'
     }}>{error && <p role='alert' className='ff-error'>{error}</p>}{notice && <p role='status'>{notice}</p>}{post ? <><article className='ff-panel'><h1><Link to={`/profile/${post.author?.username}`}>{post.author?.display_name}</Link></h1><p>{new Date(post.created_at).toLocaleString()}</p><p className='ff-prewrap'>{post.content}</p>{post.image_urls?.map(url => <img key={url} src={url} alt='Post photo' style={{
@@ -67,17 +69,17 @@ export default function SinglePostPage() {
               });
               navigate('/feed');
             });
-          }}>Delete post</button>}</article><section className='ff-panel'><h2>Comments</h2><form onSubmit={e => {
+          }}>Delete post</button>}</article><section className='ff-panel'><h2>Comments</h2>{replyTo && <p>Replying to {replyTo.author?.display_name}<button onClick={()=>setReplyTo(null)}>Cancel reply</button></p>}<form onSubmit={e => {
             e.preventDefault();
             run(async () => {
               await apiFetch(`/api/posts/${id}/comments`, {
                 method: 'POST',
                 body: JSON.stringify({
-                  content: text
+                  content: text, parent_id: replyTo?.id
                 })
               });
-              setText('');
+              setText(''); setReplyTo(null);
               setPage(1);
             });
-          }}><label className='ff-field'>Your comment<textarea value={text} onChange={e => setText(e.target.value)} required maxLength={500} /></label><button disabled={busy || !text.trim()}>Post comment</button></form>{comments.map(c => <article key={c.id}><p><strong>{c.author?.display_name}</strong> · {new Date(c.created_at).toLocaleString()}</p><p className='ff-prewrap'>{c.content}</p></article>)}{!comments.length && <p>No comments yet.</p>}<button disabled={page === 1} onClick={() => setPage(p => p - 1)}>Previous</button><button disabled={!more} onClick={() => setPage(p => p + 1)}>Next</button></section></> : !error && <p>Loading post…</p>}</main></div>;
+          }}><label className='ff-field'>Your comment<textarea value={text} onChange={e => setText(e.target.value)} required maxLength={500} /></label><button disabled={busy || !text.trim()}>Post comment</button></form>{comments.map(c => <article key={c.id}><p><strong>{c.author?.display_name}</strong> · {new Date(c.created_at).toLocaleString()}</p><p className='ff-prewrap'>{c.content}</p>{c.parent_id&&<small>Reply in this conversation</small>}<button disabled={busy} onClick={()=>setReplyTo(c)}>Reply</button><button disabled={busy} onClick={()=>run(()=>apiFetch(`/api/posts/${id}/comments/${c.id}/like`,{method:'POST',body:'{}'}))}>Like · {c.likes_count||0}</button><button disabled={busy} onClick={()=>run(()=>apiFetch(`/api/posts/${id}/comments/${c.id}/like`,{method:'DELETE'}))}>Remove like</button></article>)}{!comments.length && <p>No comments yet.</p>}<button disabled={page === 1} onClick={() => setPage(p => p - 1)}>Previous</button><button disabled={!more} onClick={() => setPage(p => p + 1)}>Next</button></section></> : !error && <p>Loading post…</p>}</main></div>;
 }

@@ -1,3 +1,4 @@
+import AppHeader from '../components/AppHeader'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -26,7 +27,7 @@ export default function DirectoryPage({ role }) {
   }, [apiFetch, role, query, page,filters])
   const title = `${role[0].toUpperCase()}${role.slice(1)}${role === 'coach' ? 'es' : 's'}`
   return <div className="directory">
-    <header><Link to="/feed" className="brand">footfrica</Link><nav><Link to="/feed">Home</Link><Link to="/discover">Discover</Link><Link to="/messages">Messages</Link><Link to="/profile">My profile</Link></nav></header>
+    <AppHeader/>
     <main><h1>{title}</h1><nav className="directory-tabs">{['player','club','scout','coach'].map(type => <Link key={type} aria-current={role === type ? 'page' : undefined} to={`/${type}${type === 'coach' ? 'es' : 's'}`}>{type[0].toUpperCase() + type.slice(1)}{type === 'coach' ? 'es' : 's'}</Link>)}</nav>
       <label>Search {title.toLowerCase()}<input value={query} onChange={e => { setQuery(e.target.value); setPage(1) }} placeholder="Name or username" /></label>
       {role==='player'&&<div style={{display:'flex',gap:12,flexWrap:'wrap'}}>{[['position','Position'],['nationality','Nationality'],['foot','Dominant foot (left/right/both)'],['min_age','Minimum age'],['max_age','Maximum age']].map(([key,label])=><label key={key}>{label}<input value={filters[key]||''} onChange={e=>{setFilters(f=>{const next={...f};if(e.target.value)next[key]=e.target.value;else delete next[key];return next});setPage(1)}}/></label>)}</div>}

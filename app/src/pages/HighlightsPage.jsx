@@ -1,3 +1,4 @@
+import AppHeader from '../components/AppHeader'
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +8,7 @@ export default function HighlightsPage() {
   const {
     apiFetch
   } = useAuth();
+  const [index, setIndex] = useState(0);
   const [posts, setPosts] = useState([]),
     [error, setError] = useState(''),
     [loading, setLoading] = useState(true);
@@ -23,8 +25,6 @@ export default function HighlightsPage() {
       done = true;
     };
   }, [apiFetch]);
-  return <div className='ff-workspace'><header className='ff-topbar'><Link className='ff-brand' to='/feed'>footfrica</Link><nav><Link to='/upload-highlight'>Upload highlight</Link><Link to='/players'>Find talent</Link><Link to='/scouts/watchlist'>Watchlist</Link><Link to='/saved'>Saved posts</Link></nav></header><main className='ff-work-main' style={{
-      maxWidth: 850,
-      margin: 'auto'
-    }}><h1>Highlights</h1><p>Leading public video posts from the past seven days.</p>{error && <p role='alert' className='ff-error'>{error}</p>}{loading && <p>Loading…</p>}{posts.map(p => <article key={p.id} className='ff-panel'><h2><Link to={`/profile/${p.author?.username}`}>{p.author?.display_name}</Link></h2><p>{p.content}</p><StreamPlayer video={p.video} /><p>{p.likes_count || 0} likes · {p.comments_count || 0} comments</p><Link to={`/post/${p.id}`}>Comment, like or save</Link></article>)}{!loading && !error && !posts.length && <p>No highlights yet. Share the first one.</p>}</main></div>;
+  const post=posts[index];
+  return <div className='ff-workspace'><AppHeader/>{error && <p role='alert' className='ff-error'>{error}</p>}{loading && <p>Loading highlights…</p>}{post ? <main className='design-highlight'><aside className='design-highlight-caption'><h2>{post.author?.display_name || 'Football highlight'}</h2><p>@{post.author?.username} · {post.author?.user_type}</p><p>{post.content}</p><p style={{color:'#b59700'}}>{post.tags?.map(t=>'#'+t).join(' ')}</p><Link to={`/profile/${post.author?.username}`}>View profile</Link> · <Link to={`/post/${post.id}`}>Join the conversation</Link></aside><section className='design-highlight-video' aria-label='Selected highlight'><StreamPlayer key={post.id} video={post.video}/></section><aside className='design-highlight-actions'><Link to={`/post/${post.id}`} aria-label='Like or comment on highlight'>♡<br/>{post.likes_count || 0}</Link><Link to={`/post/${post.id}`} aria-label='Comments'>Comments<br/>{post.comments_count || 0}</Link><Link to='/saved'>Saved</Link><button disabled={index===0} onClick={()=>setIndex(i=>i-1)} aria-label='Previous highlight'>↑</button><button disabled={index===posts.length-1} onClick={()=>setIndex(i=>i+1)} aria-label='Next highlight'>↓</button><small>{index+1} / {posts.length}</small></aside></main> : !loading && <main className='ff-work-main'><h1>Highlights</h1><p>No highlights yet. Share the first one.</p><Link to='/upload-highlight'>Upload a highlight</Link></main>}</div>;
 }

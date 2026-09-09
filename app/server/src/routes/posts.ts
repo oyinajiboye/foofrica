@@ -18,6 +18,15 @@ const postRoutes: FastifyPluginAsync = async (fastify) => {
     if(!data)return reply.code(404).send({message:'Post not found'})
     if(!await canViewPost(request.user?.id,data))return reply.code(403).send({message:'Post is unavailable'})
   })
+  for (const method of ['POST','DELETE'] as const) fastify.route({ method, url:'/:id/comments/:commentId/like', preHandler:[fastify.authenticate], handler:async(request,reply)=>{
+    const {id,commentId}=request.params as {id:string;commentId:string}
+    const {data:comment,error}=await supabaseAdmin.from('comments').select('id').eq('id',commentId).eq('post_id',id).maybeSingle()
+    if(error)return reply.code(500).send({message:'Unable to check comment'})
+    if(!comment)return reply.code(404).send({message:'Comment not found'})
+    const result=method==='POST'?await supabaseAdmin.from('comment_likes').upsert({comment_id:commentId,user_id:request.user.id},{onConflict:'comment_id,user_id',ignoreDuplicates:true}):await supabaseAdmin.from('comment_likes').delete().eq('comment_id',commentId).eq('user_id',request.user.id)
+    if(result.error)return reply.code(500).send({message:'Unable to update comment like'})
+    return {success:true}
+  }})
   /**
    * POST /api/posts
    * Create a new post
@@ -341,6 +350,11 @@ const postRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/:id/comments', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id: postId } = request.params as { id: string }
     const body = createCommentSchema.parse(request.body)
+    if (body.parent_id) {
+      const { data: parent, error } = await supabaseAdmin.from('comments').select('id').eq('id',body.parent_id).eq('post_id',postId).maybeSingle()
+      if (error) return reply.code(500).send({message:'Unable to check parent comment'})
+      if (!parent) return reply.code(400).send({message:'Reply must belong to this post'})
+    }
     const authorId = request.user.id
 
     const { data: comment, error } = await supabaseAdmin
@@ -349,6 +363,7 @@ const postRoutes: FastifyPluginAsync = async (fastify) => {
         post_id: postId,
         author_id: authorId,
         content: body.content,
+        parent_id: body.parent_id ?? null,
         likes_count: 0,
       })
       .select(`

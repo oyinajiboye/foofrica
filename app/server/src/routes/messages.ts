@@ -60,6 +60,9 @@ const messageRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (error) return reply.status(500).send({ message: error.message })
 
+    const {data:preferences,error:prefError}=await supabaseAdmin.from('conversation_preferences').select('conversation_id,pinned,muted').eq('user_id',userId)
+    if(prefError)throw new Error('Unable to load conversation preferences')
+    const prefs=new Map((preferences||[]).map(p=>[p.conversation_id,p]))
     // Enrich with other participant's profile
     const enriched = await Promise.all(
       (data ?? []).map(async (conv) => {
@@ -83,6 +86,8 @@ const messageRoutes: FastifyPluginAsync = async (fastify) => {
         return {
           ...conv,
           messages: undefined, // don't send all messages in list view
+          pinned: prefs.get(conv.id)?.pinned || false,
+          muted: prefs.get(conv.id)?.muted || false,
           other_participant: otherParticipant,
           unread_count: unreadMessages.length,
         }
@@ -92,7 +97,7 @@ const messageRoutes: FastifyPluginAsync = async (fastify) => {
     return reply.send({
       success: true,
       data: {
-        data: enriched,
+        data: enriched.sort((a,b)=>Number(b.pinned)-Number(a.pinned)),
         total: count ?? 0,
         page: p,
         limit: l,

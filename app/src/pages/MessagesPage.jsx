@@ -1,3 +1,4 @@
+import AppHeader from '../components/AppHeader'
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -9,6 +10,8 @@ export default function MessagesPage() {
       apiFetch
     } = useAuth(),
     [params] = useSearchParams();
+  const [preferences,setPreferences]=useState({});
+  const [presence,setPresence]=useState([]);
   const [conversations, setConversations] = useState([]),
     [active, setActive] = useState(null),
     [messages, setMessages] = useState([]),
@@ -26,6 +29,9 @@ export default function MessagesPage() {
     const r = await apiFetch(`/api/messages/conversations/${active}?page=${page}&limit=50`);
     setMessages(r.data.data || []);
     setMore(r.data.hasMore);
+    const [pref, people]=await Promise.all([apiFetch(`/api/conversation-controls/${active}/preferences`),apiFetch(`/api/conversation-controls/${active}/presence`)])
+    setPreferences(pref.data);setPresence(people.data)
+    await apiFetch(`/api/conversation-controls/${active}/presence`,{method:'PUT',body:JSON.stringify({typing:false})});
   }, [apiFetch, active, page]);
   useEffect(() => {
     let running = false,
@@ -76,7 +82,7 @@ export default function MessagesPage() {
       setPage(1);
     });
   };
-  return <div className='ff-workspace'><header className='ff-topbar'><Link className='ff-brand' to='/feed'>footfrica</Link><nav><Link to='/opportunities'>Opportunities</Link><Link to='/applications'>Applications</Link><Link to='/profile'>My profile</Link></nav></header><main className='ff-work-main'><h1>Messages</h1>{error && <p role='alert' className='ff-error'>{error}</p>}<details open={!!params.get('to')}><summary>New message</summary><Form busy={busy} label='Send message' fields={[{
+  return <div className='ff-workspace'><AppHeader/><main className='ff-work-main'><h1>Messages</h1>{error && <p role='alert' className='ff-error'>{error}</p>}<details open={!!params.get('to')}><summary>New message</summary><Form busy={busy} label='Send message' fields={[{
           name: 'username',
           label: 'Recipient username',
           required: true,
@@ -105,7 +111,7 @@ export default function MessagesPage() {
             setActive(c.id);
             setMessages([]);
             setPage(1);
-          }} aria-pressed={active === c.id}><strong>{c.other_participant?.display_name || 'Former participant'}</strong><p>{c.last_message}</p>{c.unread_count > 0 && <span>{c.unread_count} unread</span>}</button>) : <p>No conversations yet.</p>}</aside><section className='ff-panel'>{active ? <><h2>{other?.display_name || 'Conversation'}</h2>{other && <><Link to={`/profile/${other.username}`}>View profile</Link> · <Link to='/safety'>Report or block</Link><button disabled={busy} onClick={() => run(() => apiFetch(`/api/blocks/mutes/${other.id}`, {
+          }} aria-pressed={active === c.id}><strong>{c.pinned?'Pinned · ':''}{c.other_participant?.display_name || 'Former participant'}</strong><p>{c.last_message}</p>{c.unread_count > 0 && <span>{c.unread_count} unread</span>}</button>) : <p>No conversations yet.</p>}</aside><section className='ff-panel'>{active ? <><h2>{other?.display_name || 'Conversation'}</h2><p>{presence.some(p=>p.typing)?'Typing…':presence.length?'Online':''}</p><button disabled={busy} onClick={()=>run(()=>apiFetch(`/api/conversation-controls/${active}/preferences`,{method:'PUT',body:JSON.stringify({pinned:!preferences.pinned})}))}>{preferences.pinned?'Unpin conversation':'Pin conversation'}</button><button disabled={busy} onClick={()=>run(()=>apiFetch(`/api/conversation-controls/${active}/preferences`,{method:'PUT',body:JSON.stringify({muted:!preferences.muted})}))}>{preferences.muted?'Unmute conversation':'Mute conversation'}</button>{other && <><Link to={`/profile/${other.username}`}>View profile</Link> · <Link to='/safety'>Report or block</Link><button disabled={busy} onClick={() => run(() => apiFetch(`/api/blocks/mutes/${other.id}`, {
                 method: 'POST',
                 body: '{}'
               }))}>Mute account</button></>}<button disabled={busy} onClick={() => {
@@ -119,7 +125,7 @@ export default function MessagesPage() {
             }}>Leave conversation</button><div aria-live='polite' className='ff-thread'>{messages.map(m => <article key={m.id} className={m.sender_id === user.id ? 'ff-message own' : 'ff-message'}><strong>{m.sender?.display_name || 'You'}</strong><p className='ff-prewrap'>{m.content}</p>{m.attachments?.map(a => <button disabled={busy} key={a.id} onClick={() => run(async () => {
                   const r = await apiFetch(`/api/messages/attachments/${a.id}`);
                   window.location.assign(r.data.url);
-                })}>Download {a.file_name}</button>)}<small>{new Date(m.created_at).toLocaleString()}{m.sender_id === user.id && m.read_at ? ' · Read' : ''}</small></article>)}</div><button disabled={!more} onClick={() => setPage(p => p + 1)}>Older messages</button><button disabled={page === 1} onClick={() => setPage(p => p - 1)}>Newer messages</button><form onSubmit={send}><label className='ff-field'>Message<textarea required maxLength={2000} value={text} onChange={e => setText(e.target.value)} /></label><button disabled={busy || !text.trim()}>Send</button></form><label className='ff-field'>Attach PDF or photo (5 MB)<input disabled={busy} type='file' accept='application/pdf,image/jpeg,image/png,image/webp' onChange={e => {
+                })}>Download {a.file_name}</button>)}<small>{new Date(m.created_at).toLocaleString()}{m.sender_id === user.id && m.read_at ? ' · Read' : ''}</small></article>)}</div><button disabled={!more} onClick={() => setPage(p => p + 1)}>Older messages</button><button disabled={page === 1} onClick={() => setPage(p => p - 1)}>Newer messages</button><form onSubmit={send}><label className='ff-field'>Message<textarea required maxLength={2000} value={text} onChange={e => {setText(e.target.value);if(active)apiFetch(`/api/conversation-controls/${active}/presence`,{method:'PUT',body:JSON.stringify({typing:true})}).catch(()=>{})}} /></label><button disabled={busy || !text.trim()}>Send</button></form><label className='ff-field'>Attach PDF or photo (5 MB)<input disabled={busy} type='file' accept='application/pdf,image/jpeg,image/png,image/webp' onChange={e => {
                 const file = e.target.files?.[0];
                 e.target.value = '';
                 if (file) run(async () => {
@@ -131,5 +137,5 @@ export default function MessagesPage() {
                     body
                   });
                 });
-              }} /></label><button onClick={() => setText(`${window.location.origin}/profile/${user.username}`)}>Share my profile</button><Link to='/upload-highlight'>Upload a highlight</Link></> : <p>Select a conversation or start a new message.</p>}</section></div></main></div>;
+              }} /></label><button onClick={() => setText(`${window.location.origin}/profile/${user.username}`)}>Share my profile</button><Link to='/upload-highlight'>Upload a highlight</Link></> : <p>Select a conversation or start a new message.</p>}</section><aside className='design-side'>{other && <section className='ff-panel'><span className='design-avatar'>{other.display_name?.slice(0,1)}</span><h2>{other.display_name}</h2><p>@{other.username}</p><Link to={`/profile/${other.username}`}>View profile</Link></section>}<section className='ff-panel'><h2>Football actions</h2><p><Link to='/opportunities'>Explore trials</Link></p><p><Link to='/players'>Find players</Link></p><p><Link to='/safety'>Report, block or mute</Link></p></section></aside></div></main></div>;
 }

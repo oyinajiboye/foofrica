@@ -225,3 +225,31 @@ test('player endpoints reject injected ownership fields before database writes',
   assert.equal(writes.length,0)
  }
 })
+
+test('role switching uses verified identity and rejects injected authority',async()=>{
+ reset(table=>({data:table==='profiles'?profile:null,error:null}))
+ let args; const original=supabaseAdmin.rpc
+ supabaseAdmin.rpc=async(name,input)=>{args={name,input};return {data:{...profile,user_type:'coach',is_verified:false},error:null}}
+ try {
+  const res=await app.inject({method:'POST',url:'/api/settings/account/role',headers,payload:{expected_role:'player',next_role:'coach'}})
+  assert.equal(res.statusCode,200,res.body);assert.equal(args.input.actor,userId);assert.equal(args.name,'switch_account_role')
+  const bad=await app.inject({method:'POST',url:'/api/settings/account/role',headers,payload:{expected_role:'player',next_role:'coach',actor:otherId}})
+  assert.equal(bad.statusCode,400)
+ }finally{supabaseAdmin.rpc=original}
+})
+test('conversation controls reject a nonparticipant',async()=>{
+ reset(table=>({data:table==='profiles'?profile:table==='conversations'?{participant_ids:[otherId]}:null,error:null}))
+ for(const suffix of ['preferences','presence']){
+  const r=await app.inject({method:'GET',url:`/api/conversation-controls/${otherId}/${suffix}`,headers})
+  assert.equal(r.statusCode,403,r.body)
+ }
+ assert.equal(writes.length,0)
+})
+
+test('data exports restrict records to authenticated owner and reject arbitrary datasets',async()=>{
+ let query
+ reset((table,calls)=>{if(table==='profiles')return {data:profile,error:null};query=calls;return {data:[],error:null}})
+ const r=await app.inject({method:'GET',url:'/api/account-data/export/messages',headers})
+ assert.equal(r.statusCode,200,r.body);assert.ok(query.some(c=>c[0]==='eq'&&c[1]==='sender_id'&&c[2]===userId))
+ const bad=await app.inject({method:'GET',url:'/api/account-data/export/profiles',headers});assert.equal(bad.statusCode,400)
+})

@@ -1,3 +1,4 @@
+import AppHeader from '../components/AppHeader'
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -50,7 +51,7 @@ export default function ScoutWatchlistPage() {
     try { await apiFetch(`/api/scouts/shortlists/${selected}/players/${playerId}`, { method: 'PUT', body: JSON.stringify({ notes }) }); setError('') }
     catch (err) { setError('Note was not saved: ' + err.message) }
   }
-  return <div className="directory"><header><Link to="/feed" className="brand">footfrica</Link><nav><Link to="/players">Find players</Link><Link to="/messages">Messages</Link><Link to="/profile">My profile</Link></nav></header><main>
+  return <div className="directory"><AppHeader/><main>
     <h1>Scout watchlist</h1>{user?.user_type !== 'scout' ? <p>Watchlists are available to scout accounts. <Link to="/players">Explore players</Link></p> : <>
       {error && <p role="alert">{error}</p>}
       <form onSubmit={createList}><label>Create a shortlist<input required maxLength={100} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Under-21 midfielders" /></label><button disabled={busy || !name.trim()}>Create shortlist</button></form>

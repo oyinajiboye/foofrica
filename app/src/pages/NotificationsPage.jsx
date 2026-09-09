@@ -1,3 +1,4 @@
+import AppHeader from '../components/AppHeader'
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -20,6 +21,7 @@ export default function NotificationsPage() {
   const {
     apiFetch
   } = useAuth();
+  const [filter,setFilter]=useState('All');
   const [data, setData] = useState({
       data: []
     }),
@@ -66,8 +68,7 @@ export default function NotificationsPage() {
       setBusy(false);
     }
   };
-  return <main className='ff-work-main' style={{
-    maxWidth: 850,
-    margin: 'auto'
-  }}><Link className='ff-brand' to='/feed'>footfrica</Link><h1>Notifications</h1><p>{data.unread_count || 0} unread · <Link to='/alerts'>Opportunity preferences</Link></p>{error && <p role='alert' className='ff-error'>{error}</p>}<button disabled={busy} onClick={() => act('/api/notifications/read-all', 'PUT')}>Mark all read</button>{data.data.length ? data.data.map(n => <article className='ff-panel' key={n.id}><Link to={target(n)} onClick={() => act(`/api/notifications/${n.id}/read`, 'PUT')}><strong>{n.actor?.display_name || 'Footfrica'}</strong> {labels[n.type] || 'sent an update'}</Link><p>{new Date(n.created_at).toLocaleString()}{!n.read_at ? ' · Unread' : ''}</p><button disabled={busy} onClick={() => act(`/api/notifications/${n.id}`, 'DELETE')}>Delete</button></article>) : <p>No notifications yet.</p>}<button disabled={page === 1 || busy} onClick={() => setPage(p => p - 1)}>Previous</button><button disabled={!data.hasMore || busy} onClick={() => setPage(p => p + 1)}>Next</button></main>;
+  const groups={All:null,Mentions:['mention'],Posts:['like','comment','repost'],Opportunities:['opportunity','application','squad'],Messages:['message'],System:['verification']};
+  const visible=data.data.filter(n=>!groups[filter] || groups[filter].includes(n.type));
+  return <div className='ff-workspace'><AppHeader/><main className='ff-work-main'><h1>Notifications</h1><p>Stay updated on your football activity, opportunities, and conversations.</p>{error && <p role='alert' className='ff-error'>{error}</p>}<button disabled={busy} onClick={()=>act('/api/notifications/read-all','PUT')}>Mark all as read</button><div className='design-two-column'><section className='ff-panel design-notification-list'><nav className='design-tabs' aria-label='Notification filters'>{Object.keys(groups).map(t=><button key={t} aria-selected={filter===t} onClick={()=>setFilter(t)}>{t}</button>)}</nav>{visible.length?visible.map(n=><article className={'design-notification '+(!n.read_at?'unread':'')} key={n.id}><span className='design-avatar'>{(n.actor?.display_name||'F').slice(0,1)}</span><div><Link to={target(n)} onClick={()=>act(`/api/notifications/${n.id}/read`,'PUT')}><strong>{n.actor?.display_name||'Footfrica'}</strong> {labels[n.type]||'sent an update'}</Link><p>{new Date(n.created_at).toLocaleString()}</p><Link to={target(n)}>View update</Link></div><button style={{marginLeft:'auto',background:'white',color:'#777',borderColor:'#eee'}} disabled={busy} onClick={()=>act(`/api/notifications/${n.id}`,'DELETE')}>Delete</button></article>):<p style={{padding:24}}>No notifications in this category on this page.</p>}<div style={{padding:16}}><button disabled={page===1||busy} onClick={()=>setPage(p=>p-1)}>Previous</button><button disabled={!data.hasMore||busy} onClick={()=>setPage(p=>p+1)}>Next</button></div></section><aside className='design-side'><section className='ff-panel'><h2>Activity summary</h2><dl><dt>Unread notifications</dt><dd>{data.unread_count||0}</dd><dt>On this page</dt><dd>{data.data.length}</dd></dl></section><section className='ff-panel'><h2>Notification settings</h2><p>Choose which football updates you want to receive.</p><Link to='/settings'>Manage settings</Link></section><section className='ff-panel'><h2>Opportunities</h2><Link to='/alerts'>Manage opportunity preferences</Link></section></aside></div></main></div>;
 }

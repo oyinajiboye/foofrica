@@ -1,3 +1,4 @@
+import AppHeader from '../components/AppHeader'
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -94,7 +95,7 @@ export default function RecruitmentPage() {
     body: JSON.stringify(body)
   });
   const rows = Array.isArray(data) ? data : [];
-  return <div className='ff-workspace'><header className='ff-topbar'><Link to='/feed' className='ff-brand'>footfrica</Link><nav><Link to='/feed'>Feed</Link><Link to='/players'>Find talent</Link><Link to='/messages'>Messages</Link><Link to='/profile'>My profile</Link></nav></header><div className='ff-workspace-grid'><aside className='ff-work-nav'>{routes.map(([path, name]) => <Link key={path} aria-current={tab === path ? 'page' : undefined} to={`/${path}`}>{name}</Link>)}<Link to='/scouts/watchlist'>Scout watchlist</Link><Link to='/settings'>Settings</Link></aside><main className='ff-work-main'><h1>{routes.find(r => r[0] === tab)?.[1]}</h1>{error && <p role='alert' className='ff-error'>{error}</p>}{notice && <p role='status' className='ff-success'>{notice}</p>}{loading && <p>Loading…</p>}
+  return <div className='ff-workspace'><AppHeader/><div className='ff-workspace-grid'><aside className='ff-work-nav'>{routes.map(([path, name]) => <Link key={path} aria-current={tab === path ? 'page' : undefined} to={`/${path}`}>{name}</Link>)}<Link to='/scouts/watchlist'>Scout watchlist</Link><Link to='/settings'>Settings</Link></aside><main className='ff-work-main'><h1>{routes.find(r => r[0] === tab)?.[1]}</h1>{error && <p role='alert' className='ff-error'>{error}</p>}{notice && <p role='status' className='ff-success'>{notice}</p>}{loading && <p>Loading…</p>}
  {tab === 'opportunities' && <><Form busy={busy} label='Filter opportunities' fields={[{
             name: 'country',
             label: 'Country'

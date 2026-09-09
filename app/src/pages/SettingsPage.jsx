@@ -1,3 +1,4 @@
+import AppHeader from '../components/AppHeader'
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -6,7 +7,7 @@ export default function SettingsPage() {
   const {
     user,
     apiFetch,
-    clearSession
+    clearSession, saveSession, accessToken
   } = useAuth();
   const navigate = useNavigate();
   const [settings, setSettings] = useState(null),
@@ -35,11 +36,13 @@ export default function SettingsPage() {
       setBusy(false);
     }
   };
-  return <div className='ff-workspace'><header className='ff-topbar'><Link className='ff-brand' to='/feed'>footfrica</Link><nav><Link to='/profile'>Edit profile</Link><Link to='/opportunities'>Opportunities</Link><Link to='/safety'>Safety centre</Link></nav></header><main className='ff-work-main' style={{
+  return <div className='ff-workspace'><AppHeader/><div className='design-settings'><aside className='ff-panel'><h2>Settings</h2>{['Account','Privacy and notifications','Change password','Change email','Location and website','Interests','Account controls'].map(label=><a key={label} href={'#settings-'+label.replaceAll(' ','-')}>{label}</a>)}<Link to='/profile'>Profile</Link><Link to='/verification'>Verification</Link><Link to='/safety'>Blocked & muted</Link></aside><main className='ff-work-main' style={{
       maxWidth: 850,
       margin: 'auto'
-    }}><h1>Settings</h1>{error && <p role='alert' className='ff-error'>{error}</p>}{notice && <p role='status'>{notice}</p>}
- {settings && <><section className='ff-panel'><h2>Privacy and notifications</h2><Form busy={busy} fields={[{
+    }}><h1 id='settings-Account'>Settings</h1><p>Manage your Footfrica account, privacy, notifications, and football visibility.</p>{error && <p role='alert' className='ff-error'>{error}</p>}{notice && <p role='status'>{notice}</p>}
+ <section className='ff-panel'><h2>Download your data</h2><p>Download your own posts, comments, sent messages, applications and role-switch history as JSON.</p>{['posts','comments','messages','applications','role_history'].map(dataset=><button key={dataset} disabled={busy} onClick={async()=>{setBusy(true);setError('');try{const records=[];let page=1,more=true;while(more){const r=await apiFetch(`/api/account-data/export/${dataset}?page=${page++}`);records.push(...r.data.records);more=r.data.hasMore}const url=URL.createObjectURL(new Blob([JSON.stringify({dataset,exported_at:new Date().toISOString(),records},null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=`footfrica-${dataset}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}catch(e){setError(e.message)}finally{setBusy(false)}}}>Download {dataset.replaceAll('_',' ')}</button>)}</section>
+ <section className='ff-panel'><h2>Switch account role</h2><p>Active role: <strong>{user.user_type}</strong>. Only one role is active at a time. Previous details are retained, but switching clears verification and requires a new verification request. Resolve active applications and squad memberships first.</p><Form busy={busy} label='Switch role' fields={[{name:'next_role',label:'New role',options:['fan','player','coach','scout','club'],value:user.user_type}]} onSubmit={async f=>{setBusy(true);setError('');try{const r=await apiFetch('/api/settings/account/role',{method:'POST',body:JSON.stringify({expected_role:user.user_type,next_role:f.next_role})});saveSession(accessToken,r.data);navigate('/profile')}catch(e){setError(e.message)}finally{setBusy(false)}}}/></section>
+ {settings && <><section id='settings-Privacy-and-notifications' className='ff-panel'><h2>Privacy and notifications</h2><Form busy={busy} fields={[{
             name: 'profile_visibility',
             label: 'Profile visibility',
             options: ['public', 'private'],
@@ -58,7 +61,7 @@ export default function SettingsPage() {
                   [key]: value
                 }));
               }} />{key.replaceAll('_', ' ')}</span></label>)}</section></>}
- <details className='ff-panel'><summary>Change password</summary><Form busy={busy} fields={[{
+ <details id='settings-Change-password' className='ff-panel'><summary>Change password</summary><Form busy={busy} fields={[{
           name: 'current_password',
           label: 'Current password',
           type: 'password',
@@ -69,7 +72,7 @@ export default function SettingsPage() {
           type: 'password',
           required: true
         }]} onSubmit={f => save('/api/settings/account/password', f)} /></details>
- <details className='ff-panel'><summary>Change email</summary><Form busy={busy} fields={[{
+ <details id='settings-Change-email' className='ff-panel'><summary>Change email</summary><Form busy={busy} fields={[{
           name: 'new_email',
           label: 'New email',
           type: 'email',
@@ -80,7 +83,7 @@ export default function SettingsPage() {
           type: 'password',
           required: true
         }]} onSubmit={f => save('/api/settings/account/email', f)} /></details>
- <section className='ff-panel'><h2>Location and website</h2><Form busy={busy} fields={[{
+ <section id='settings-Location-and-website' className='ff-panel'><h2>Location and website</h2><Form busy={busy} fields={[{
           name: 'location',
           label: 'Location',
           value: user.location
@@ -90,23 +93,23 @@ export default function SettingsPage() {
           type: 'url',
           value: user.website_url
         }]} onSubmit={f => save('/api/settings/account/profile', f)} /></section>
- <section className='ff-panel'><h2>Interests</h2><Form busy={busy} fields={[{
+ <section id='settings-Interests' className='ff-panel'><h2>Interests</h2><Form busy={busy} fields={[{
           name: 'interests',
           label: 'Topics, separated by commas',
           value: (user.interests || []).join(', ')
         }]} onSubmit={f => save('/api/profiles/me', {
           interests: f.interests.split(',').map(s => s.trim()).filter(Boolean)
         })} /><Link to='/alerts'>Manage opportunity alerts</Link></section>
- <section className='ff-panel'><h2>Account controls</h2><button disabled={busy} onClick={async () => {
+ <section id='settings-Account-controls' className='ff-panel'><h2>Account controls</h2><button disabled={busy} onClick={async () => {
           await apiFetch('/api/auth/logout', {
             method: 'POST',
             body: '{}'
           }).catch(() => {});
-          clearSession();
+          clearSession, saveSession, accessToken();
           navigate('/login');
         }}>Sign out</button><details><summary>Deactivate account</summary><p>Your account will be disabled. You will need administrator assistance to reactivate it.</p><button disabled={busy} onClick={async () => {
             if (window.confirm('Disable your account? Reactivation requires administrator assistance.') && (await save('/api/settings/deactivate', {}, 'POST'))) {
-              clearSession();
+              clearSession, saveSession, accessToken();
               navigate('/login');
             }
           }}>Deactivate account</button></details><details><summary>Permanently delete account</summary><p>This permanently deletes your account and associated records.</p><Form busy={busy} label='Delete account permanently' fields={[{
@@ -116,9 +119,9 @@ export default function SettingsPage() {
             required: true
           }]} onSubmit={async f => {
             if (window.confirm('Permanently delete your account and records?') && (await save('/api/settings/account', f, 'DELETE'))) {
-              clearSession();
+              clearSession, saveSession, accessToken();
               navigate('/');
             }
           }} /></details></section>
- </main></div>;
+ </main></div></div>;
 }

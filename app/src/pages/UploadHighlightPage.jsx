@@ -1,3 +1,4 @@
+import AppHeader from '../components/AppHeader'
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -50,7 +51,7 @@ export default function UploadHighlightPage() {
       setVideo(saved.data);
     });
   };
-  return <main className='ff-work-main' style={{
+  return <div className='ff-workspace'><AppHeader/><main className='ff-work-main' style={{
     maxWidth: 760,
     margin: 'auto'
   }}><Link to='/feed'>← Feed</Link><h1>Upload a highlight</h1>{error && <p role='alert' className='ff-error'>{error}</p>}{busy && <p role='status'>Uploading or saving… Keep this page open.</p>}{!video ? <form className='ff-panel' onSubmit={upload}><label className='ff-field'>Title<input value={title} onChange={e => setTitle(e.target.value)} required maxLength={200} /></label><label className='ff-field'>Video (up to 200 MB, 10 minutes)<input name='file' type='file' accept='video/*' required /></label><button disabled={busy}>Upload video</button></form> : <section className='ff-panel'><h2>{video.title}</h2><p>Status: {video.status}</p>{video.status === 'ready' ? <><StreamPlayer video={video} /><button disabled={busy} onClick={() => run(async () => {
@@ -74,5 +75,5 @@ export default function UploadHighlightPage() {
           method: 'DELETE'
         });
         setVideo(null);
-      })}>Delete upload</button></section>}</main>;
+      })}>Delete upload</button></section>}</main></div>;
 }

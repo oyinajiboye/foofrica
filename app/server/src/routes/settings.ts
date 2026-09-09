@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import type { FastifyPluginAsync } from 'fastify'
 import { supabaseAdmin, createAuthClient } from '../lib/supabase'
 import { cacheDelete, cacheKeys } from '../lib/redis'
@@ -9,6 +10,14 @@ import {
 } from '../schemas/settings.schemas'
 
 const settingsRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.post('/account/role', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+    const role = z.enum(['player','club','scout','coach','fan'])
+    const body = z.object({ expected_role: role, next_role: role }).strict().parse(request.body)
+    const { data, error } = await supabaseAdmin.rpc('switch_account_role', { actor: request.user.id, ...body })
+    if (error) return reply.code(error.code === 'P0001' ? 409 : 500).send({ message: error.code === 'P0001' ? error.message : 'Unable to switch role' })
+    return { success: true, data }
+  })
+
   /**
    * GET /api/settings
    * Get the authenticated user's settings

@@ -1,7 +1,7 @@
 import { canViewProfile, protectProfilePayload } from '../services/access.service'
 import type { FastifyPluginAsync } from 'fastify'
 import { supabaseAdmin } from '../lib/supabase'
-import { paginationSchema } from '../schemas/profile.schemas'
+import { paginationSchema, addCareerEntrySchema, upsertPlayerStatsSchema } from '../schemas/profile.schemas'
 
 const playerRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('preHandler',fastify.optionalAuth)
@@ -92,23 +92,14 @@ const playerRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put('/:id/stats', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id } = request.params as { id: string }
 
-    if (request.user.id !== id) {
+    if (request.user.id !== id || request.user.user_type !== 'player') {
       return reply.status(403).send({ message: 'Unauthorized' })
     }
     if (request.user.user_type !== 'player') {
       return reply.status(403).send({ message: 'Only players can update stats' })
     }
 
-    const body = request.body as {
-      season: string
-      club_name?: string
-      appearances?: number
-      goals?: number
-      assists?: number
-      clean_sheets?: number
-      yellow_cards?: number
-      red_cards?: number
-    }
+    const body = upsertPlayerStatsSchema.strict().parse(request.body)
 
     const { data, error } = await supabaseAdmin
       .from('player_stats')
@@ -144,17 +135,11 @@ const playerRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/:id/career', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id } = request.params as { id: string }
 
-    if (request.user.id !== id) {
+    if (request.user.id !== id || request.user.user_type !== 'player') {
       return reply.status(403).send({ message: 'You can only edit your own career' })
     }
 
-    const body = request.body as {
-      club_name: string
-      start_date: string
-      end_date?: string
-      role?: string
-      is_current?: boolean
-    }
+    const body = addCareerEntrySchema.strict().parse(request.body)
 
     // If marking as current, clear existing current entries
     if (body.is_current) {
@@ -181,11 +166,11 @@ const playerRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put('/:id/career/:entryId', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id, entryId } = request.params as { id: string; entryId: string }
 
-    if (request.user.id !== id) {
+    if (request.user.id !== id || request.user.user_type !== 'player') {
       return reply.status(403).send({ message: 'Unauthorized' })
     }
 
-    const body = request.body as Record<string, unknown>
+    const body = addCareerEntrySchema.partial().strict().parse(request.body)
 
     const { data, error } = await supabaseAdmin
       .from('career_history')
@@ -205,7 +190,7 @@ const playerRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete('/:id/career/:entryId', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id, entryId } = request.params as { id: string; entryId: string }
 
-    if (request.user.id !== id) {
+    if (request.user.id !== id || request.user.user_type !== 'player') {
       return reply.status(403).send({ message: 'Unauthorized' })
     }
 

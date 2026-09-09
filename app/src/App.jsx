@@ -1,6 +1,6 @@
 import UploadHighlightPage from './pages/UploadHighlightPage'
 import { useState, useCallback } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { Navigate, BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 
@@ -85,7 +85,7 @@ export default function App() {
         <Routes>
           {/* Marketing landing page */}
           <Route path="/" element={<LandingPage />} />
-          <Route path="/admin" element={<Admin />} />
+          <Route path="/admin" element={<ProtectedRoute><Navigate to="/moderation" replace /></ProtectedRoute>} />
 
           {/* Auth */}
           <Route path="/welcome" element={<WelcomePage />} />
@@ -99,7 +99,7 @@ export default function App() {
           <Route path="/onboard/interests" element={<ProtectedRoute onboarding><OnboardInterests /></ProtectedRoute>} />
           <Route path="/onboard/complete" element={<ProtectedRoute onboarding><OnboardComplete /></ProtectedRoute>} />
 
-          {['opportunities','applications','verification','compare','cv','analytics','squad','alerts','safety','saved','moderation'].map(path => <Route key={path} path={'/'+path} element={<ProtectedRoute><RecruitmentPage key={path}/></ProtectedRoute>}/>)}
+          {['opportunities','applications','verification','compare','cv','analytics','squad','alerts','safety','saved','moderation'].map(path => <Route key={path} path={'/'+path} element={<ProtectedRoute roles={['applications','squad'].includes(path) ? ['player','club'] : path === 'cv' ? ['player'] : undefined}><RecruitmentPage key={path}/></ProtectedRoute>}/>)}
           <Route path='/upload-highlight' element={<ProtectedRoute><UploadHighlightPage/></ProtectedRoute>}/>
           {/* Main App Routes */}
           <Route path="/feed" element={<ProtectedRoute><FeedPage /></ProtectedRoute>} />
@@ -115,7 +115,7 @@ export default function App() {
           <Route path="/clubs" element={<ProtectedRoute><DirectoryPage key="club" role="club" /></ProtectedRoute>} />
           <Route path="/clubs/:id" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/scouts" element={<ProtectedRoute><DirectoryPage key="scout" role="scout" /></ProtectedRoute>} />
-          <Route path="/scouts/watchlist" element={<ProtectedRoute><ScoutWatchlistPage /></ProtectedRoute>} />
+          <Route path="/scouts/watchlist" element={<ProtectedRoute roles={['scout']}><ScoutWatchlistPage /></ProtectedRoute>} />
           <Route path="/coaches" element={<ProtectedRoute><DirectoryPage key="coach" role="coach" /></ProtectedRoute>} />
           <Route path="/discover" element={<ProtectedRoute><DiscoverPage /></ProtectedRoute>} />
           <Route path="/players" element={<ProtectedRoute><DirectoryPage key="player" role="player" /></ProtectedRoute>} />

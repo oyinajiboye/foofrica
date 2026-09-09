@@ -110,7 +110,7 @@ const clubRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/:id/verify-player/:playerId', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id: clubId, playerId } = request.params as { id: string; playerId: string }
 
-    if (request.user.id !== clubId) {
+    if (request.user.id !== clubId || request.user.user_type !== 'club') {
       return reply.status(403).send({ message: 'Only the club account can verify affiliations' })
     }
 

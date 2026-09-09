@@ -67,7 +67,8 @@ const recruitmentRoutes: FastifyPluginAsync = async (app) => {
         fail(error);
         return reply.code(201).send({ success: true, data });
     });
-    app.get('/applications', async (req) => {
+    app.get('/applications', async (req, reply) => {
+        if (!['player', 'club'].includes(req.user.user_type)) return reply.code(403).send({ message: 'Player or club account required.' });
         let query = db.from('applications').select('*,opportunity:opportunities!inner(id,title,club_id,country,city),player:profiles!applications_player_id_fkey(id,username,display_name)').order('created_at', { ascending: false });
         query = req.user.user_type === 'club' ? query.eq('opportunity.club_id', req.user.id) : query.eq('player_id', req.user.id);
         const { data, error } = await query.limit(200);
@@ -143,7 +144,8 @@ const recruitmentRoutes: FastifyPluginAsync = async (app) => {
         fail(error);
         return { success: true, data };
     });
-    app.get('/squad', async (req) => {
+    app.get('/squad', async (req, reply) => {
+        if (!['player', 'club'].includes(req.user.user_type)) return reply.code(403).send({ message: 'Player or club account required.' });
         let q = db.from('squad_memberships').select('*,club:profiles!squad_memberships_club_id_fkey(id,username,display_name),player:profiles!squad_memberships_player_id_fkey(id,username,display_name)').order('created_at', { ascending: false });
         q = req.user.user_type === 'club' ? q.eq('club_id', req.user.id) : q.eq('player_id', req.user.id);
         const { data, error } = await q;

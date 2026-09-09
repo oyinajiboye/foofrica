@@ -193,3 +193,35 @@ test('recommendation feedback rejects unavailable posts',async()=>{
  const res=await app.inject({method:'POST',url:`/api/feed/feedback/${otherId}`,headers,payload:{kind:'interested'}})
  assert.equal(res.statusCode,403,res.body);assert.equal(writes.length,0)
 })
+
+
+test('role matrix denies specialist mutations to other account types', async () => {
+ const routes = [
+  ['player','POST',`/api/players/${userId}/career`],
+  ['player','PUT',`/api/players/${userId}/stats`],
+  ['player','PUT',`/api/players/${userId}/career/${otherId}`],
+  ['player','DELETE',`/api/players/${userId}/career/${otherId}`],
+  ['player','PUT',`/api/profiles/${userId}/stats`],
+  ['club','POST',`/api/clubs/${userId}/verify-player/${otherId}`],
+  ['coach','DELETE',`/api/coaches/${userId}/endorse/${otherId}?skill=pace`],
+  ['scout','GET','/api/scouts/shortlists'],
+ ]
+ for (const [allowed,method,url] of routes) for (const role of ['fan','club','player','scout','coach'].filter(r=>r!==allowed)) {
+  reset(table=>({data:table==='profiles'?{...profile,user_type:role}:null,error:null}))
+  const res=await app.inject({method,url,headers,...(['POST','PUT'].includes(method)?{payload:{}}:{})})
+  assert.equal(res.statusCode,403,`${role} ${method} ${url}: ${res.body}`)
+  assert.equal(writes.length,0)
+ }
+})
+test('player endpoints reject injected ownership fields before database writes',async()=>{
+ for (const [method,url,payload] of [
+  ['PUT',`/api/players/${userId}/stats`,{season:'2026',club_name:'Club',player_id:otherId}],
+  ['POST',`/api/players/${userId}/career`,{club_name:'Club',start_date:'2026-01-01',player_id:otherId}],
+  ['PUT',`/api/players/${userId}/career/${otherId}`,{player_id:otherId}],
+ ]) {
+  reset(table=>({data:table==='profiles'?profile:null,error:null}))
+  const res=await app.inject({method,url,headers,payload})
+  assert.equal(res.statusCode,400,res.body)
+  assert.equal(writes.length,0)
+ }
+})

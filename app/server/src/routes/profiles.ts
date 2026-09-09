@@ -308,7 +308,7 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete('/:id/career/:entryId', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id, entryId } = request.params as { id: string; entryId: string }
 
-    if (request.user.id !== id) {
+    if (request.user.id !== id || request.user.user_type !== 'player') {
       return reply.status(403).send({ message: 'Unauthorized' })
     }
 
@@ -329,7 +329,7 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string }
     if (!await canViewProfile(request.user?.id,id)) return reply.code(403).send({message:'Profile is private or unavailable.'})
 
-    if (request.user.id !== id) {
+    if (request.user.id !== id || request.user.user_type !== 'player') {
       return reply.status(403).send({ message: 'Unauthorized' })
     }
 

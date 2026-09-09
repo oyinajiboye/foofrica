@@ -1,9 +1,12 @@
+import { canViewProfile, protectProfilePayload } from '../services/access.service'
 import type { FastifyPluginAsync } from 'fastify'
 import { supabaseAdmin } from '../lib/supabase'
 import { createNotification } from '../services/notification.service'
 import { cacheDelete, cacheDeletePattern, cacheKeys } from '../lib/redis'
 
 const followRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.addHook('preHandler',fastify.optionalAuth)
+  fastify.addHook('preSerialization',async(req,_reply,payload)=>protectProfilePayload(req.user?.id,payload))
   /**
    * POST /api/follows/:userId
    * Follow a user
@@ -16,6 +19,7 @@ const followRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({ message: 'You cannot follow yourself' })
     }
 
+    if(!await canViewProfile(followerId,targetId))return reply.code(403).send({message:'Account unavailable'})
     // Check target profile exists
     const { data: target } = await supabaseAdmin
       .from('profiles')

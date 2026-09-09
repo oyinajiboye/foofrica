@@ -1,17 +1,48 @@
+import { z } from 'zod'
+import { randomUUID } from 'node:crypto'
+import { paginationSchema } from '../schemas/profile.schemas'
+import { canMessage } from '../services/access.service'
 import type { FastifyPluginAsync } from 'fastify'
 import { supabaseAdmin } from '../lib/supabase'
 import { createNotification } from '../services/notification.service'
 
 const messageRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.post('/conversations/:id/attachments',{preHandler:[fastify.authenticate]},async(request,reply)=>{
+    const {id}=z.object({id:z.string().uuid()}).parse(request.params)
+    const {data:conv}=await supabaseAdmin.from('conversations').select('participant_ids').eq('id',id).single()
+    if(!conv?.participant_ids.includes(request.user.id))return reply.code(403).send({message:'Conversation unavailable'})
+    const other=conv.participant_ids.find((p:string)=>p!==request.user.id)
+    if(!other||!await canMessage(request.user.id,other))return reply.code(403).send({message:'This account is not accepting messages from you.'})
+    const file=await request.file()
+    if(!file||!['application/pdf','image/jpeg','image/png','image/webp'].includes(file.mimetype))return reply.code(400).send({message:'Choose a PDF, JPEG, PNG or WebP file up to 5 MB.'})
+    const bytes=await file.toBuffer(),path=`${id}/${randomUUID()}`
+    const storage=supabaseAdmin.storage.from('message-attachments')
+    const {error:uploadError}=await storage.upload(path,bytes,{contentType:file.mimetype})
+    if(uploadError)return reply.code(500).send({message:'Unable to upload attachment'})
+    const filename=file.filename.replace(/[^a-zA-Z0-9._ -]/g,'_').slice(0,120)||'Attachment'
+    const {data:msg,error}=await supabaseAdmin.from('messages').insert({conversation_id:id,sender_id:request.user.id,content:`Attachment: ${filename}`}).select().single()
+    if(error){await storage.remove([path]);return reply.code(500).send({message:'Unable to send attachment'})}
+    const {error:linkError}=await supabaseAdmin.from('message_attachments').insert({message_id:msg.id,storage_path:path,file_name:filename,mime_type:file.mimetype,file_size:bytes.length})
+    if(linkError){await storage.remove([path]);await supabaseAdmin.from('messages').delete().eq('id',msg.id);return reply.code(500).send({message:'Unable to save attachment'})}
+    await supabaseAdmin.from('conversations').update({last_message:msg.content,last_message_at:new Date().toISOString()}).eq('id',id)
+    return reply.code(201).send({success:true,data:msg})
+  })
+  fastify.get('/attachments/:id',{preHandler:[fastify.authenticate]},async(request,reply)=>{
+    const {id}=z.object({id:z.string().uuid()}).parse(request.params)
+    const {data:a}=await supabaseAdmin.from('message_attachments').select('*,message:messages!inner(conversation:conversations!inner(participant_ids))').eq('id',id).single()
+    if(!a?.message?.conversation?.participant_ids.includes(request.user.id))return reply.code(403).send({message:'Attachment unavailable'})
+    const {data,error}=await supabaseAdmin.storage.from('message-attachments').createSignedUrl(a.storage_path,60,{download:a.file_name})
+    if(error)return reply.code(500).send({message:'Unable to download attachment'})
+    return {success:true,data:{url:data.signedUrl}}
+  })
+
   /**
    * GET /api/messages/conversations
    * List all conversations for the authenticated user
    */
   fastify.get('/conversations', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const userId = request.user.id
-    const { page = '1', limit = '20' } = request.query as Record<string, string>
-    const p = Number(page)
-    const l = Number(limit)
+    const {page:p,limit:l}=paginationSchema.parse(request.query)
     const offset = (p - 1) * l
 
     // Get all conversations where user is a participant
@@ -29,6 +60,9 @@ const messageRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (error) return reply.status(500).send({ message: error.message })
 
+    const {data:preferences,error:prefError}=await supabaseAdmin.from('conversation_preferences').select('conversation_id,pinned,muted').eq('user_id',userId)
+    if(prefError)throw new Error('Unable to load conversation preferences')
+    const prefs=new Map((preferences||[]).map(p=>[p.conversation_id,p]))
     // Enrich with other participant's profile
     const enriched = await Promise.all(
       (data ?? []).map(async (conv) => {
@@ -52,6 +86,8 @@ const messageRoutes: FastifyPluginAsync = async (fastify) => {
         return {
           ...conv,
           messages: undefined, // don't send all messages in list view
+          pinned: prefs.get(conv.id)?.pinned || false,
+          muted: prefs.get(conv.id)?.muted || false,
           other_participant: otherParticipant,
           unread_count: unreadMessages.length,
         }
@@ -61,7 +97,7 @@ const messageRoutes: FastifyPluginAsync = async (fastify) => {
     return reply.send({
       success: true,
       data: {
-        data: enriched,
+        data: enriched.sort((a,b)=>Number(b.pinned)-Number(a.pinned)),
         total: count ?? 0,
         page: p,
         limit: l,
@@ -76,10 +112,7 @@ const messageRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post('/conversations', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const userId = request.user.id
-    const { recipient_id, message } = request.body as {
-      recipient_id: string
-      message: string
-    }
+    const { recipient_id, message } = z.object({recipient_id:z.string().uuid(),message:z.string().trim().min(1).max(2000)}).parse(request.body)
 
     if (!recipient_id || !message?.trim()) {
       return reply.status(400).send({ message: 'recipient_id and message are required' })
@@ -88,6 +121,8 @@ const messageRoutes: FastifyPluginAsync = async (fastify) => {
     if (recipient_id === userId) {
       return reply.status(400).send({ message: 'You cannot message yourself' })
     }
+
+    if(!await canMessage(userId,recipient_id))return reply.code(403).send({message:'This account is not accepting messages from you.'})
 
     // Verify recipient exists
     const { data: recipient } = await supabaseAdmin
@@ -168,9 +203,7 @@ const messageRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/conversations/:id', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id: conversationId } = request.params as { id: string }
     const userId = request.user.id
-    const { page = '1', limit = '30' } = request.query as Record<string, string>
-    const p = Number(page)
-    const l = Number(limit)
+    const {page:p,limit:l}=paginationSchema.parse(request.query)
     const offset = (p - 1) * l
 
     // Verify user is a participant
@@ -187,7 +220,7 @@ const messageRoutes: FastifyPluginAsync = async (fastify) => {
     const { data, error, count } = await supabaseAdmin
       .from('messages')
       .select(`
-        *,
+        *, attachments:message_attachments(id,file_name,mime_type,file_size),
         sender:profiles!messages_sender_id_fkey(
           id, username, display_name, avatar_url
         )
@@ -229,7 +262,7 @@ const messageRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/conversations/:id', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id: conversationId } = request.params as { id: string }
     const userId = request.user.id
-    const { content } = request.body as { content: string }
+    const { content } = z.object({content:z.string().trim().min(1).max(2000)}).parse(request.body)
 
     if (!content?.trim()) {
       return reply.status(400).send({ message: 'Message content is required' })
@@ -246,6 +279,9 @@ const messageRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(403).send({ message: 'Not authorized to send to this conversation' })
     }
 
+    const recipient=conv.participant_ids.find((id:string)=>id!==userId)
+    if(!recipient || !await canMessage(userId,recipient))return reply.code(403).send({message:'This account is not accepting messages from you.'})
+
     const { data: msg, error } = await supabaseAdmin
       .from('messages')
       .insert({
@@ -254,7 +290,7 @@ const messageRoutes: FastifyPluginAsync = async (fastify) => {
         content: content.trim(),
       })
       .select(`
-        *,
+        *, attachments:message_attachments(id,file_name,mime_type,file_size),
         sender:profiles!messages_sender_id_fkey(
           id, username, display_name, avatar_url
         )

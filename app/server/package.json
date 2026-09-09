@@ -1,7 +1,7 @@
 {
   "name": "footfrica-server",
   "version": "1.0.0",
-  "description": "Footfrica API Backend — Fastify + TypeScript + Supabase",
+  "description": "Footfrica API Backend \u2014 Fastify + TypeScript + Supabase",
   "private": true,
   "type": "commonjs",
   "scripts": {
@@ -9,7 +9,8 @@
     "build": "tsc --project tsconfig.json",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src --ext .ts",
+    "test": "npm run build && node --test test/*.test.cjs"
   },
   "dependencies": {
     "@algolia/client-search": "^5.14.2",

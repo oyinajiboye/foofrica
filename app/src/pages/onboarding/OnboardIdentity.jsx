@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { StepBar } from './OnboardUserType'
 import '../../styles/auth.css'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+import { API_BASE } from '../../lib/api'
 
 const BackIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

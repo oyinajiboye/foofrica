@@ -3,6 +3,11 @@ import { supabaseAdmin } from '../lib/supabase'
 import { createReportSchema } from '../schemas/settings.schemas'
 
 const reportRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.get('/', {preHandler:[fastify.authenticate]}, async(request,reply)=>{
+    const {data,error}=await supabaseAdmin.from('reports').select('id,entity_type,reason,status,created_at').eq('reporter_id',request.user.id).order('created_at',{ascending:false}).limit(100)
+    if(error)return reply.code(500).send({message:'Unable to load reports.'})
+    return {success:true,data:data||[]}
+  })
   /**
    * POST /api/reports
    * Submit a report against a post, comment, profile, or video.

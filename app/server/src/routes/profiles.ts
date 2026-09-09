@@ -1,3 +1,4 @@
+import { canViewProfile, publicProfile, visiblePosts } from '../services/access.service'
 import type { FastifyPluginAsync } from 'fastify'
 import { supabaseAdmin } from '../lib/supabase'
 import { cacheGet, cacheSet, cacheDelete, cacheKeys, TTL } from '../lib/redis'
@@ -24,8 +25,7 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
     const { identifier } = request.params as { identifier: string }
     const cacheKey = cacheKeys.profile(identifier)
 
-    const cached = await cacheGet(cacheKey)
-    if (cached) return reply.send({ success: true, data: cached })
+    // Follow state is viewer-specific; do not serve it from a shared profile cache.
 
     const isUuid = /^[0-9a-f-]{36}$/.test(identifier)
     const query = supabaseAdmin.from('profiles').select(`
@@ -49,6 +49,8 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
       })
     }
 
+    if (!await canViewProfile(request.user?.id,data.id)) return reply.code(403).send({ message:'This profile is private or unavailable.' })
+
     // Check if current user follows this profile
     let is_following = false
     if (request.user && request.user.id !== data.id) {
@@ -61,8 +63,8 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
       is_following = !!follow
     }
 
-    const result = { ...data, is_following }
-    await cacheSet(cacheKey, result, TTL.profile)
+    const result = { ...await publicProfile(request.user?.id,data), is_following }
+    // A shared cache must never contain is_following.
 
     return reply.send({ success: true, data: result })
   })
@@ -207,6 +209,7 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.get('/:id/posts', { preHandler: [fastify.optionalAuth] }, async (request, reply) => {
     const { id } = request.params as { id: string }
+    if (!await canViewProfile(request.user?.id,id)) return reply.code(403).send({message:'Profile is private or unavailable.'})
     const { page, limit } = paginationSchema.parse(request.query)
     const offset = (page - 1) * limit
 
@@ -222,7 +225,7 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
     return reply.send({
       success: true,
       data: {
-        data: data ?? [],
+        data: await visiblePosts(request.user?.id,data ?? []),
         total: count ?? 0,
         page,
         limit,
@@ -235,8 +238,9 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/profiles/:id/videos
    * Get video gallery for a profile
    */
-  fastify.get('/:id/videos', async (request, reply) => {
+  fastify.get('/:id/videos', { preHandler: [fastify.optionalAuth] }, async (request, reply) => {
     const { id } = request.params as { id: string }
+    if (!await canViewProfile(request.user?.id,id)) return reply.code(403).send({message:'Profile is private or unavailable.'})
     const { page, limit } = paginationSchema.parse(request.query)
     const offset = (page - 1) * limit
 
@@ -260,6 +264,16 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
    * POST /api/profiles/:id/career
    * Add a career entry (players only)
    */
+  for (const [suffix, table, column] of [['career', 'career_history', 'start_date'], ['stats', 'player_stats', 'season']]) {
+    fastify.get(`/:id/${suffix}`, { preHandler: [fastify.optionalAuth] }, async (request, reply) => {
+      const { id } = request.params as { id: string }
+    if (!await canViewProfile(request.user?.id,id)) return reply.code(403).send({message:'Profile is private or unavailable.'})
+      const { data, error } = await supabaseAdmin.from(table).select('*').eq('player_id', id).order(column, { ascending: false })
+      if (error) return reply.code(500).send({ message: error.message })
+      return reply.send({ success: true, data: data ?? [] })
+    })
+  }
+
   fastify.post('/:id/career', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     if (request.user.user_type !== 'player') {
       return reply.status(403).send({ message: 'Only players can add career entries' })
@@ -294,7 +308,7 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete('/:id/career/:entryId', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id, entryId } = request.params as { id: string; entryId: string }
 
-    if (request.user.id !== id) {
+    if (request.user.id !== id || request.user.user_type !== 'player') {
       return reply.status(403).send({ message: 'Unauthorized' })
     }
 
@@ -313,8 +327,9 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.put('/:id/stats', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id } = request.params as { id: string }
+    if (!await canViewProfile(request.user?.id,id)) return reply.code(403).send({message:'Profile is private or unavailable.'})
 
-    if (request.user.id !== id) {
+    if (request.user.id !== id || request.user.user_type !== 'player') {
       return reply.status(403).send({ message: 'Unauthorized' })
     }
 
@@ -348,6 +363,7 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({ message: 'You cannot endorse yourself' })
     }
 
+    if (!await canViewProfile(endorserId,playerId)) return reply.code(403).send({message:'Player is unavailable.'})
     const body = endorsePlayerSchema.parse(request.body)
 
     // Check for duplicate endorsement of same skill
@@ -388,8 +404,9 @@ const profileRoutes: FastifyPluginAsync = async (fastify) => {
    * GET /api/profiles/:id/endorsements
    * Get all endorsements for a player
    */
-  fastify.get('/:id/endorsements', async (request, reply) => {
+  fastify.get('/:id/endorsements', { preHandler: [fastify.optionalAuth] }, async (request, reply) => {
     const { id } = request.params as { id: string }
+    if (!await canViewProfile(request.user?.id,id)) return reply.code(403).send({message:'Profile is private or unavailable.'})
 
     const { data, error } = await supabaseAdmin
       .from('endorsements')

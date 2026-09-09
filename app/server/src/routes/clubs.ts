@@ -1,8 +1,14 @@
+import {z} from 'zod'
+import { canViewProfile, protectProfilePayload } from '../services/access.service'
 import type { FastifyPluginAsync } from 'fastify'
 import { supabaseAdmin } from '../lib/supabase'
 import { paginationSchema } from '../schemas/profile.schemas'
 
 const clubRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.addHook('preHandler',fastify.optionalAuth)
+  fastify.addHook('preHandler',async(req,reply)=>{const id=(req.params as {id?:string}).id;if(id&&!await canViewProfile(req.user?.id,id))return reply.code(403).send({message:'Profile unavailable'})})
+  fastify.addHook('preSerialization',async(req,_reply,payload)=>protectProfilePayload(req.user?.id,payload))
+
   /**
    * GET /api/clubs/:id
    * Get a club profile with squad summary
@@ -40,23 +46,6 @@ const clubRoutes: FastifyPluginAsync = async (fastify) => {
     const { page, limit } = paginationSchema.parse(request.query)
     const offset = (page - 1) * limit
 
-    const { data, error, count } = await supabaseAdmin
-      .from('profiles')
-      .select(`
-        id, username, display_name, avatar_url, is_verified, follower_count,
-        player_profile:player_profiles(
-          primary_position, secondary_positions, jersey_number,
-          nationality, height_cm, dominant_foot
-        )
-      `, { count: 'exact' })
-      .eq('user_type', 'player')
-      // Players whose current_club_id matches
-      // Using a join via player_profiles
-      .order('display_name', { ascending: true })
-      .range(offset, offset + limit - 1)
-
-    if (error) return reply.status(500).send({ message: error.message })
-
     // Filter by current_club_id in player_profiles
     const { data: squadData, error: squadError, count: squadCount } = await supabaseAdmin
       .from('player_profiles')
@@ -89,83 +78,29 @@ const clubRoutes: FastifyPluginAsync = async (fastify) => {
    * Add a player to the club squad (club owner only)
    * This sets the player's current_club_id if they accept or the club adds them directly
    */
-  fastify.post('/:id/squad', { preHandler: [fastify.authenticate] }, async (request, reply) => {
-    const { id: clubId } = request.params as { id: string }
-
-    if (request.user.id !== clubId) {
-      return reply.status(403).send({ message: 'Only the club account can manage its squad' })
-    }
-    if (request.user.user_type !== 'club') {
-      return reply.status(403).send({ message: 'Only club accounts can manage squads' })
-    }
-
-    const { player_id, jersey_number } = request.body as {
-      player_id: string
-      jersey_number?: number
-    }
-
-    // Verify player exists
-    const { data: player } = await supabaseAdmin
-      .from('profiles')
-      .select('id, display_name')
-      .eq('id', player_id)
-      .eq('user_type', 'player')
-      .single()
-
-    if (!player) {
-      return reply.status(404).send({ message: 'Player not found' })
-    }
-
-    // Update player's current_club_id
-    const updatePayload: Record<string, unknown> = { current_club_id: clubId }
-    if (jersey_number) updatePayload.jersey_number = jersey_number
-
-    const { error } = await supabaseAdmin
-      .from('player_profiles')
-      .update(updatePayload)
-      .eq('profile_id', player_id)
-
-    if (error) return reply.status(500).send({ message: error.message })
-
-    // Add to career history as current
-    await supabaseAdmin.from('career_history').insert({
-      player_id,
-      club_name: (await supabaseAdmin.from('club_profiles').select('club_name').eq('profile_id', clubId).single()).data?.club_name ?? 'Unknown Club',
-      start_date: new Date().toISOString().split('T')[0],
-      is_current: true,
-    })
-
-    return reply.status(201).send({
-      success: true,
-      message: `${player.display_name} added to squad`,
-    })
+  fastify.post('/:id/squad', {preHandler:[fastify.authenticate]}, async(request,reply)=>{
+    const {id}=z.object({id:z.string().uuid()}).parse(request.params)
+    const {player_id}=z.object({player_id:z.string().uuid()}).parse(request.body)
+    if(request.user.id!==id||request.user.user_type!=='club')return reply.code(403).send({message:'Club owner required'})
+    const {data:player}=await supabaseAdmin.from('profiles').select('id').eq('id',player_id).eq('user_type','player').single()
+    if(!player||!await canViewProfile(request.user.id,player_id))return reply.code(404).send({message:'Player unavailable'})
+    const {data,error}=await supabaseAdmin.from('squad_memberships').insert({club_id:id,player_id}).select().single()
+    if(error)return reply.code(error.code==='23505'?409:500).send({message:'Unable to invite player'})
+    return reply.code(201).send({success:true,data,message:'Invitation sent. The player must accept.'})
   })
 
   /**
    * DELETE /api/clubs/:id/squad/:playerId
    * Remove player from squad
    */
-  fastify.delete('/:id/squad/:playerId', { preHandler: [fastify.authenticate] }, async (request, reply) => {
-    const { id: clubId, playerId } = request.params as { id: string; playerId: string }
-
-    if (request.user.id !== clubId) {
-      return reply.status(403).send({ message: 'Only the club account can manage its squad' })
-    }
-
-    await supabaseAdmin
-      .from('player_profiles')
-      .update({ current_club_id: null })
-      .eq('profile_id', playerId)
-      .eq('current_club_id', clubId)
-
-    // Mark career entry as ended
-    await supabaseAdmin
-      .from('career_history')
-      .update({ is_current: false, end_date: new Date().toISOString().split('T')[0] })
-      .eq('player_id', playerId)
-      .eq('is_current', true)
-
-    return reply.send({ success: true, message: 'Player removed from squad' })
+  fastify.delete('/:id/squad/:playerId', {preHandler:[fastify.authenticate]}, async(request,reply)=>{
+    const {id,playerId}=z.object({id:z.string().uuid(),playerId:z.string().uuid()}).parse(request.params)
+    if(request.user.id!==id||request.user.user_type!=='club')return reply.code(403).send({message:'Club owner required'})
+    const {data:m}=await supabaseAdmin.from('squad_memberships').select('id').eq('club_id',id).eq('player_id',playerId).in('status',['pending','accepted']).maybeSingle()
+    if(!m)return reply.code(404).send({message:'Membership not found'})
+    const {error}=await supabaseAdmin.rpc('respond_squad_membership',{membership_id:m.id,actor_id:id,decision:'ended'})
+    if(error)return reply.code(409).send({message:'Unable to end membership'})
+    return {success:true}
   })
 
   /**
@@ -175,7 +110,7 @@ const clubRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/:id/verify-player/:playerId', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id: clubId, playerId } = request.params as { id: string; playerId: string }
 
-    if (request.user.id !== clubId) {
+    if (request.user.id !== clubId || request.user.user_type !== 'club') {
       return reply.status(403).send({ message: 'Only the club account can verify affiliations' })
     }
 

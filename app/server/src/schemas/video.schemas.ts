@@ -3,7 +3,7 @@ import { z } from 'zod'
 const POSITIONS = ['GK', 'CB', 'LB', 'RB', 'CDM', 'CM', 'CAM', 'LW', 'RW', 'ST', 'CF'] as const
 
 export const videoMetadataSchema = z.object({
-  cloudflare_uid: z.string().min(1),
+  cloudflare_uid: z.string().regex(/^[a-f0-9]{32}$/),
   title: z.string().max(200).optional(),
   description: z.string().max(1000).optional(),
   match_type: z.enum(['match', 'training', 'highlight']).optional(),

@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import StreamPlayer from '../components/StreamPlayer'
+import Poll from '../components/Poll'
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import '../styles/feed.css'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+import { API_BASE } from '../lib/api'
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
@@ -152,21 +154,33 @@ function UserTypeBadge({ type }) {
 function ComposeModal({ user, onClose, onPost }) {
   const [text, setText] = useState('')
   const [postType, setPostType] = useState('text')
+  const [files, setFiles] = useState([])
+  const [pollOptions,setPollOptions]=useState('')
+  const [topics,setTopics]=useState('')
+  const [composeError, setComposeError] = useState('')
   const [loading, setLoading] = useState(false)
   const { apiFetch } = useAuth()
 
   const handleSubmit = async () => {
-    if (!text.trim() && postType === 'text') return
+    if (loading || (!text.trim() && !files.length)) return
     setLoading(true)
+    setComposeError('')
     try {
+      const image_urls = []
+      for (const file of files) {
+        if (file.size > 5 * 1024 * 1024) throw new Error('Each photo must be 5 MB or smaller.')
+        const body = new FormData(); body.append('file', file)
+        const result = await apiFetch('/api/uploads/post-image', { method: 'POST', body })
+        image_urls.push(result.data.image_url)
+      }
       const data = await apiFetch('/api/posts', {
         method: 'POST',
-        body: JSON.stringify({ content: text, post_type: postType }),
+        body: JSON.stringify({ content: text.trim(), tags:topics.split(',').map(t=>t.trim()).filter(Boolean).slice(0,10), post_type: postType==='poll'?'poll':image_urls.length ? 'image' : 'text', image_urls, ...(postType==='poll'?{poll_options:pollOptions.split('\n').map(x=>x.trim()).filter(Boolean),poll_duration_hours:24}:{}) }),
       })
       onPost(data.data)
       onClose()
     } catch (e) {
-      console.error(e)
+      setComposeError(e.message)
     } finally {
       setLoading(false)
     }
@@ -195,17 +209,22 @@ function ComposeModal({ user, onClose, onPost }) {
             </div>
           </div>
         </div>
+        {postType==='poll'&&<label style={{padding:16}}>2–4 options, one per line<textarea value={pollOptions} onChange={e=>setPollOptions(e.target.value)}/></label>}
+        <label style={{padding:16}}>Football topics (comma separated)<input value={topics} onChange={e=>setTopics(e.target.value)} placeholder='Training, grassroots football, Nigeria' maxLength={600}/></label>
+        {composeError && <p role="alert" style={{padding:16}}>{composeError}</p>}
+        {postType === 'image' && <label style={{padding:16}}>Choose up to 4 photos<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple onChange={e => setFiles(Array.from(e.target.files || []).slice(0,4))} /></label>}
         <div className="compose-modal__footer">
           <div className="compose-modal__type-btns">
             {[
-              { key: 'video', icon: <VideoIcon />, label: 'Video' },
+
               { key: 'image', icon: <ImageIcon />, label: 'Photos' },
-              { key: 'poll', icon: <PollIcon />, label: 'Poll' },
+              { key:'poll',icon:<PollIcon/>,label:'Poll' },
+
             ].map(({ key, icon, label }) => (
               <button
                 key={key}
                 className={`compose-modal__type-btn ${postType === key ? 'active' : ''}`}
-                onClick={() => setPostType(postType === key ? 'text' : key)}
+                onClick={() => { setPostType(postType === key ? 'text' : key); setFiles([]) }}
                 id={`compose-type-${key}`}
               >
                 {icon} {label}
@@ -215,7 +234,7 @@ function ComposeModal({ user, onClose, onPost }) {
           <button
             className="compose-modal__submit"
             onClick={handleSubmit}
-            disabled={loading || (!text.trim() && postType === 'text')}
+            disabled={loading || (!text.trim() && !files.length)}
             id="compose-submit"
           >
             {loading ? 'Posting…' : 'Post'}
@@ -228,13 +247,23 @@ function ComposeModal({ user, onClose, onPost }) {
 
 // ─── Post Card ────────────────────────────────────────────────────────────────
 
-function PostCard({ post, currentUserId, onLike, onRepost, toast }) {
+function PostCard({ post, currentUserId, onLike, onRepost, toast, onHide }) {
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [comments, setComments] = useState([])
   const [commentText, setCommentText] = useState('')
   const [loadingComments, setLoadingComments] = useState(false)
   const { apiFetch } = useAuth()
 
+  const cardRef=useRef(null)
+  useEffect(()=>{
+    const node=cardRef.current;if(!node||!('IntersectionObserver' in window))return
+    let timer,recorded=false
+    const observer=new IntersectionObserver(entries=>{
+      clearTimeout(timer)
+      if(entries[0].isIntersecting&&!recorded)timer=setTimeout(()=>{if(document.hidden)return;recorded=true;apiFetch(`/api/feed/feedback/${post.id}`,{method:'POST',body:JSON.stringify({kind:'impression'})}).catch(()=>{})},2000)
+    },{threshold:.5});observer.observe(node);return()=>{clearTimeout(timer);observer.disconnect()}
+  },[apiFetch,post.id])
+  const feedback=async kind=>{try{await apiFetch(`/api/feed/feedback/${post.id}`,{method:'POST',body:JSON.stringify({kind})});if(kind==='dismissed')onHide(post.id);else toast('Preference saved. Refresh your feed to see changes.')}catch(e){toast(e.message)}}
   const author = post.author || {}
   const isLiked = post.is_liked
   const isReposted = post.is_reposted
@@ -266,54 +295,14 @@ function PostCard({ post, currentUserId, onLike, onRepost, toast }) {
       })
       setComments((prev) => [res.data, ...prev])
       setCommentText('')
-    } catch {}
+    } catch (e) { toast(e.message) }
   }
 
   // Render media based on post type
   const renderMedia = () => {
-    if (post.post_type === 'video' && post.video) {
-      const thumbUrl = post.video.thumbnail_url
-      return (
-        <div className="post-video-wrap" id={`post-video-${post.id}`}>
-          {thumbUrl && <img src={thumbUrl} alt="Video thumbnail" />}
-          <div className="post-video-duration">0:42</div>
-          <div className="post-play-btn"><PlayIcon /></div>
-          <div className="post-video-progress">
-            <div className="post-video-progress-bar">
-              <div className="post-video-progress-fill" style={{ width: '30%' }} />
-            </div>
-            <div className="post-video-time"><span>0:42:15</span><span>1:30</span></div>
-          </div>
-        </div>
-      )
-    }
-    if (post.post_type === 'image' && post.content.images && post.content.images.length > 0) {
-      return (
-        <div className="post-image-carousel">
-          {post.content.images.length > 1 && (
-            <button className="carousel-btn prev"><ChevronLeftIcon /></button>
-          )}
-          <img src={post.content.images[0]} alt="Post content" />
-          {post.content.images.length > 1 && (
-            <button className="carousel-btn next"><ChevronRightIcon /></button>
-          )}
-        </div>
-      )
-    }
-    if (post.post_type === 'poll') {
-      const options = post.poll_options || ['Option A', 'Option B', 'Option C', 'Other']
-      return (
-        <div className="post-poll">
-          {options.map((opt, i) => (
-            <div key={i} className="poll-option" id={`poll-opt-${post.id}-${i}`}>
-              <div className="poll-option__fill" style={{ width: `${20 + i * 15}%` }} />
-              <span className="poll-option__label">{opt}</span>
-            </div>
-          ))}
-          <div className="poll-meta">1,284 votes · 18 hours left</div>
-        </div>
-      )
-    }
+    if (post.post_type === 'video' && post.video) return <StreamPlayer video={post.video}/>
+    if (post.post_type === 'image') return <div className='post-image-carousel'>{post.image_urls?.map(url=><img key={url} src={url} alt='Post photo'/>)}</div>
+    if (post.post_type === 'poll') return <Poll postId={post.id}/>
     return null
   }
 
@@ -321,20 +310,18 @@ function PostCard({ post, currentUserId, onLike, onRepost, toast }) {
   const content = post.content || ''
 
   return (
-    <div className="post-card" id={`post-${post.id}`}>
+    <div ref={cardRef} className="post-card" id={`post-${post.id}`}>
       <div className="post-header">
         <Avatar src={author.avatar_url} name={author.display_name} size={44} className="post-avatar" />
         <div className="post-meta">
           <div className="post-author-row">
-            <span className="post-author-name">{author.display_name || 'Unknown'}</span>
+            <Link className='post-author-name' to={`/profile/${author.username}`} onClick={()=>apiFetch(`/api/feed/feedback/${post.id}`,{method:'POST',body:JSON.stringify({kind:'profile_open'})}).catch(()=>{})}>{author.display_name || 'Unknown'}</Link>
             <UserTypeBadge type={author.user_type} />
             <span className="post-time">· {timeAgo(post.created_at)}</span>
           </div>
           <div className="post-handle">@{author.username || 'user'}</div>
         </div>
-        <button className="post-more-btn" id={`post-more-${post.id}`} aria-label="More options">
-          <MoreIcon />
-        </button>
+<details><summary aria-label='Recommendation options'>•••</summary><button onClick={()=>feedback('interested')}>More like this</button><button onClick={()=>feedback('dismissed')}>Not interested</button><Link to={`/post/${post.id}`}>Open post</Link></details>
       </div>
 
       {(content || hashtags.length > 0) && (
@@ -348,6 +335,7 @@ function PostCard({ post, currentUserId, onLike, onRepost, toast }) {
         </div>
       )}
 
+      {post.recommendation_reason&&<p style={{padding:'0 16px',color:'#64748b',fontSize:12}}>{post.recommendation_reason}</p>}
       {renderMedia()}
 
       <div className="post-footer">
@@ -380,9 +368,9 @@ function PostCard({ post, currentUserId, onLike, onRepost, toast }) {
       {commentsOpen && (
         <div className="post-comments-section">
           {loadingComments && <div style={{ textAlign: 'center', color: '#9CA3AF', fontSize: 13, padding: '8px 0' }}>Loading…</div>}
-          
+
           {comments.map((c, i) => (
-            <React.Fragment key={c.id}>
+            <Fragment key={c.id}>
               <div className="comment-item">
                 <Avatar src={c.author?.avatar_url} name={c.author?.display_name} size={32} className="comment-avatar" />
                 <div className="comment-content">
@@ -393,63 +381,22 @@ function PostCard({ post, currentUserId, onLike, onRepost, toast }) {
                   </div>
                   <div className="comment-text">{c.content}</div>
                   <div className="comment-actions">
-                    <button className="comment-action-btn"><LikeIcon /> {c.likes_count || 0}</button>
-                    <button className="comment-action-btn">Reply</button>
+
+                    <button className="comment-action-btn" onClick={()=>setCommentText(`@${c.author?.username||''} `)}>Reply</button>
                   </div>
-                  
-                  {/* Mock nested replies for the first comment to match Figma design Component 9 */}
-                  {i === 0 && (
-                    <div className="comment-replies-toggle">
-                      <span className="reply-line"></span> View all 3 replies
-                    </div>
-                  )}
+
                 </div>
               </div>
 
-              {/* Mock open reply level for the first comment to match Figma design Component 11 */}
-              {i === 0 && (
-                <>
-                  <div className="comment-item reply-level">
-                    <div className="comment-avatar" style={{background: '#3B82F6'}}></div>
-                    <div className="comment-content">
-                      <div className="comment-header">
-                        <span className="comment-name">Tunde Adebayo</span>
-                        <UserTypeBadge type="player" />
-                        <span className="comment-time">· 45m</span>
-                      </div>
-                      <div className="comment-text"><span className="comment-mention">@{c.author?.username || 'user'}</span> Thanks coach! Been practicing that exact move all week.</div>
-                      <div className="comment-actions">
-                        <button className="comment-action-btn"><LikeIcon /> 2</button>
-                        <button className="comment-action-btn">Reply</button>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="comment-item reply-level">
-                    <div className="comment-avatar" style={{background: '#F59E0B'}}></div>
-                    <div className="comment-content" style={{width: '100%'}}>
-                      <div className="reply-input-container">
-                        <textarea className="reply-textarea" placeholder="Write a reply..." defaultValue={`@${c.author?.username || 'user'} `}></textarea>
-                        <div className="reply-input-footer">
-                          <div className="reply-icons">
-                            <button><SmileIcon /></button>
-                            <button><ImageIcon /></button>
-                          </div>
-                          <button className="btn-submit-reply">Reply</button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-            </React.Fragment>
+            </Fragment>
           ))}
 
           {/* Main comment input box */}
           <div className="reply-input-container" style={{ marginTop: 8 }}>
-            <textarea 
-              className="reply-textarea" 
-              placeholder="Write a comment..." 
-              value={commentText} 
+            <textarea
+              className="reply-textarea"
+              placeholder="Write a comment..."
+              value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendComment(e); } }}
             ></textarea>
@@ -503,56 +450,6 @@ const SUGGESTED = [
 ]
 const CLUBS_NEAR = ['FC Lagos United', 'Mainland Football Academy', 'Nairobi City FC']
 
-// Mock post data for demo when API isn't connected
-const MOCK_POSTS = [
-  {
-    id: 'mock-1',
-    author: { display_name: 'Tunde Adebayo', username: 'tunde4real', user_type: 'player', avatar_url: null },
-    content: 'Quick highlights from today\'s match. Feeling grateful for the opportunity to showcase my skills!',
-    hashtags: ['LW', 'Lagos', 'Goal'],
-    post_type: 'video',
-    video: { thumbnail_url: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=600&q=80', cloudflare_playback_url: null },
-    likes_count: 232, comments_count: 548, reposts_count: 41,
-    created_at: new Date(Date.now() - 3 * 3600000).toISOString(),
-    is_liked: false, is_reposted: false, tags: ['Nigerian Football'], image_urls: [],
-  },
-  {
-    id: 'mock-2',
-    author: { display_name: 'Tunde Adebayo', username: 'tunde4real', user_type: 'academy', avatar_url: null },
-    content: 'Nigeria\'s U20 talent pool is incredible this season! Watching these young players develop technical skills while maintaining that raw African football energy is what it\'s all about. The future is bright. 🌟⚽',
-    hashtags: ['LW', 'Lagos', 'Goal'],
-    post_type: 'text',
-    video: null, likes_count: 232, comments_count: 548, reposts_count: 18,
-    created_at: new Date(Date.now() - 3 * 3600000).toISOString(),
-    is_liked: true, is_reposted: false, tags: ['Youth Development'], image_urls: [],
-  },
-  {
-    id: 'mock-3',
-    author: { display_name: 'Ada Okonkwo', username: 'adaanalyze1', user_type: 'fan', avatar_url: null },
-    content: 'Who has the better chance of breaking into a top-flight club this season?',
-    hashtags: ['Poll'],
-    post_type: 'poll',
-    poll_options: ['Tunde Adebayo', 'Kwame Mensah', 'Chiamaka Nwosu', 'Other'],
-    video: null, likes_count: 232, comments_count: 548, reposts_count: 10,
-    created_at: new Date(Date.now() - 5 * 3600000).toISOString(),
-    is_liked: false, is_reposted: false, tags: [], image_urls: [],
-  },
-  {
-    id: 'mock-4',
-    author: { display_name: 'Tunde Adebayo', username: 'tunde4real', user_type: 'academy', avatar_url: null },
-    content: 'Nigeria\'s U20 talent pool is incredible this season! Watching these young players develop technical skills while maintaining that raw African football energy is what it\'s all about. The future is bright. 🌟⚽',
-    hashtags: ['LW', 'Lagos', 'Goal'],
-    post_type: 'image',
-    video: null, likes_count: 232, comments_count: 548, reposts_count: 27,
-    created_at: new Date(Date.now() - 6 * 3600000).toISOString(),
-    is_liked: false, is_reposted: true, tags: [], image_urls: [
-      'https://images.unsplash.com/photo-1543326727-cf6c39e8f84c?w=400&q=80',
-      'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80',
-      'https://images.unsplash.com/photo-1517466787929-bc90951d0974?w=400&q=80',
-    ],
-  },
-]
-
 export default function FeedPage() {
   const navigate = useNavigate()
   const { user, clearSession, apiFetch } = useAuth()
@@ -561,6 +458,9 @@ export default function FeedPage() {
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
+  const nextCursor=useRef(null)
+  const requestGeneration=useRef(0)
+  const [loadingMore,setLoadingMore]=useState(false)
   const [composeOpen, setComposeOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const [toast, setToast] = useState('')
@@ -594,26 +494,30 @@ export default function FeedPage() {
   }, [apiFetch])
 
   const fetchFeed = useCallback(async (tab, pageNum = 1) => {
-    setLoading(pageNum === 1)
+    const generation=++requestGeneration.current
+    setLoading(pageNum === 1);setLoadingMore(true)
+    if(pageNum===1)nextCursor.current=null
     try {
       const endpoints = {
-        'For You': `/api/feed?page=${pageNum}&limit=10`,
+        'For You': `/api/feed?limit=10${pageNum>1&&nextCursor.current?'&cursor='+encodeURIComponent(nextCursor.current):''}`,
         'Following': `/api/feed/following?page=${pageNum}&limit=10`,
         'Trending': `/api/feed/trending?page=${pageNum}&limit=10`,
         'Discover': `/api/feed/discover?page=${pageNum}&limit=10`,
         'Match Day': `/api/feed/match-day?page=${pageNum}&limit=10`,
       }
       const res = await apiFetch(endpoints[tab] || endpoints['For You'])
+      if(generation!==requestGeneration.current)return
       const newPosts = res.data?.data || res.data || []
-      setPosts((prev) => pageNum === 1 ? newPosts : [...prev, ...newPosts])
-      setHasMore(newPosts.length === 10)
+      setPosts((prev) => pageNum === 1 ? newPosts : [...new Map([...prev,...newPosts].map(p=>[p.id,p])).values()])
+      nextCursor.current=res.data?.next_cursor||null
+      setHasMore(typeof res.data?.hasMore==='boolean'?res.data.hasMore:newPosts.length===10)
     } catch (err) {
-      // Fall back to mock data if API is not connected
-      console.warn('API not available, using mock data:', err.message)
-      setPosts(MOCK_POSTS)
+      if(generation!==requestGeneration.current)return
+      showToast(err.message || 'Unable to load your feed. Please try again.')
+      if (pageNum === 1) setPosts([])
       setHasMore(false)
     } finally {
-      setLoading(false)
+      if(generation===requestGeneration.current){setLoading(false);setLoadingMore(false)}
     }
   }, [apiFetch])
 
@@ -683,7 +587,7 @@ export default function FeedPage() {
     formData.append('file', file)
     try {
       const token = localStorage.getItem('ff_token')
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/uploads/cover`, {
+      const res = await fetch(`${API_BASE}/api/uploads/cover`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
@@ -703,7 +607,7 @@ export default function FeedPage() {
     formData.append('file', file)
     try {
       const token = localStorage.getItem('ff_token')
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/uploads/avatar`, {
+      const res = await fetch(`${API_BASE}/api/uploads/avatar`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
@@ -847,30 +751,32 @@ export default function FeedPage() {
             </div>
           </div>
 
+          <nav className='sidebar-card' style={{display:'grid',gap:12,padding:16}}><Link to='/opportunities'>Opportunities & trials</Link><Link to='/applications'>Applications</Link><Link to='/alerts'>Opportunity alerts</Link><Link to='/compare'>Compare players</Link><Link to='/safety'>Safety centre</Link><Link to='/saved'>Saved posts</Link></nav>
+          <button onClick={()=>{setPage(1);fetchFeed(activeTab,1)}} disabled={loadingMore}>Refresh feed</button><button onClick={()=>apiFetch('/api/feed/feedback',{method:'DELETE'}).then(()=>{setPage(1);fetchFeed(activeTab,1);showToast('Feed feedback reset. Your likes, saves and interests are unchanged.')}).catch(e=>showToast(e.message))}>Reset feed feedback</button>
           {/* Quick Actions */}
           <div className="sidebar-section">
             <div className="sidebar-section-title" style={{padding: '14px 16px 8px', fontSize: '13px', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em'}}>Quick Actions</div>
-            <a href="/onboard" className="quick-action-item green">
+            <a href="/profile" className="quick-action-item green">
               <div className="quick-action-icon">👤</div>
               <div className="quick-action-text">
                 <div className="quick-action-label">Complete profile</div>
                 <div className="quick-action-sub" style={{color: '#E8F5EC'}}>Add position & stats</div>
               </div>
             </a>
-            <div className="quick-action-item yellow">
+            <Link to="/upload-highlight" className="quick-action-item yellow">
               <div className="quick-action-icon">🎬</div>
               <div className="quick-action-text">
                 <div className="quick-action-label">Upload highlight</div>
                 <div className="quick-action-sub" style={{color: '#4B5563'}}>Show your skills</div>
               </div>
-            </div>
-            <div className="quick-action-item grey">
+            </Link>
+            <Link to="/squad" className="quick-action-item grey">
               <div className="quick-action-icon">🏟️</div>
               <div className="quick-action-text">
-                <div className="quick-action-label">Create club page</div>
+                <div className="quick-action-label">Manage squad</div>
                 <div className="quick-action-sub" style={{color: '#6B7280'}}>Manage your team</div>
               </div>
-            </div>
+            </Link>
           </div>
 
           {/* Topics */}
@@ -972,6 +878,7 @@ export default function FeedPage() {
               {posts.map((post, idx) => (
                 <>
                   <PostCard
+                    onHide={id=>setPosts(items=>items.filter(p=>p.id!==id))}
                     key={post.id}
                     post={post}
                     currentUserId={user?.id}
@@ -1007,6 +914,7 @@ export default function FeedPage() {
               {hasMore && (
                 <div style={{ textAlign: 'center', padding: '20px 0' }}>
                   <button
+                    disabled={loadingMore}
                     onClick={() => { const next = page + 1; setPage(next); fetchFeed(activeTab, next) }}
                     style={{
                       padding: '10px 28px', borderRadius: 10,

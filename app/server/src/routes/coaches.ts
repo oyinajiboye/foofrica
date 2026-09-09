@@ -1,8 +1,13 @@
+import { canViewProfile, protectProfilePayload } from '../services/access.service'
 import type { FastifyPluginAsync } from 'fastify'
 import { supabaseAdmin } from '../lib/supabase'
-import { paginationSchema } from '../schemas/profile.schemas'
+import { paginationSchema, endorsePlayerSchema } from '../schemas/profile.schemas'
 
 const coachRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.addHook('preHandler',fastify.optionalAuth)
+  fastify.addHook('preHandler',async(req,reply)=>{const id=(req.params as {id?:string}).id;if(id&&!await canViewProfile(req.user?.id,id))return reply.code(403).send({message:'Profile unavailable'})})
+  fastify.addHook('preSerialization',async(req,_reply,payload)=>protectProfilePayload(req.user?.id,payload))
+
   /**
    * GET /api/coaches/:id
    * Get a coach's public profile
@@ -94,7 +99,7 @@ const coachRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/:id/endorse/:playerId', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id: coachId, playerId } = request.params as { id: string; playerId: string }
 
-    if (request.user.id !== coachId) {
+    if (request.user.id !== coachId || request.user.user_type !== 'coach') {
       return reply.status(403).send({ message: 'Unauthorized' })
     }
     if (request.user.user_type !== 'coach') {
@@ -104,11 +109,10 @@ const coachRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({ message: 'You cannot endorse yourself' })
     }
 
-    const { skill } = request.body as { skill: string }
-
-    if (!skill) {
-      return reply.status(400).send({ message: 'Skill is required' })
-    }
+    const { skill } = endorsePlayerSchema.parse(request.body)
+    if (!await canViewProfile(coachId, playerId)) return reply.code(403).send({ message: 'Player unavailable' })
+    const { data: target } = await supabaseAdmin.from('profiles').select('id').eq('id', playerId).eq('user_type', 'player').maybeSingle()
+    if (!target) return reply.code(404).send({ message: 'Player not found' })
 
     // Check for duplicate
     const { data: existing } = await supabaseAdmin
@@ -152,7 +156,7 @@ const coachRoutes: FastifyPluginAsync = async (fastify) => {
     const { id: coachId, playerId } = request.params as { id: string; playerId: string }
     const { skill } = request.query as { skill: string }
 
-    if (request.user.id !== coachId) {
+    if (request.user.id !== coachId || request.user.user_type !== 'coach') {
       return reply.status(403).send({ message: 'Unauthorized' })
     }
 

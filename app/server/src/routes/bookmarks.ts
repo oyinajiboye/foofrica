@@ -1,3 +1,4 @@
+import { canViewPost } from '../services/access.service'
 import type { FastifyPluginAsync } from 'fastify'
 import { supabaseAdmin } from '../lib/supabase'
 
@@ -13,11 +14,11 @@ const bookmarkRoutes: FastifyPluginAsync = async (fastify) => {
     // Verify post exists
     const { data: post } = await supabaseAdmin
       .from('posts')
-      .select('id')
+      .select('id,author_id,visibility')
       .eq('id', postId)
       .single()
 
-    if (!post) {
+    if (!post || !await canViewPost(userId,post)) {
       return reply.status(404).send({ message: 'Post not found' })
     }
 
@@ -82,7 +83,7 @@ const bookmarkRoutes: FastifyPluginAsync = async (fastify) => {
     return reply.send({
       success: true,
       data: {
-        data: data ?? [],
+        data: (await Promise.all((data??[]).map(async (row:any)=>row.post&&await canViewPost(request.user.id,row.post)?row:null))).filter(Boolean),
         total: count ?? 0,
         page: p,
         limit: l,

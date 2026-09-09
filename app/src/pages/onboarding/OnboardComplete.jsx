@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { StepBar } from './OnboardUserType'
 import '../../styles/auth.css'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const BackIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -22,13 +21,14 @@ const BigCheckIcon = () => (
 
 export default function OnboardCompletePage() {
   const navigate = useNavigate()
-  const { accessToken, saveSession, user } = useAuth()
+  const { accessToken, saveSession, apiFetch } = useAuth()
 
   const [status, setStatus] = useState('idle') // idle | loading | success | error
   const [error, setError] = useState('')
+  const started = useRef(false)
 
   useEffect(() => {
-    submitOnboarding()
+    if (!started.current) { started.current = true; submitOnboarding() }
   }, [])
 
   const submitOnboarding = async () => {
@@ -40,28 +40,16 @@ export default function OnboardCompletePage() {
       const interests = JSON.parse(sessionStorage.getItem('ff_onboard_interests') || '[]')
 
       if (!userType || !identity.username) {
-        // If something's missing, just go to feed
-        navigate('/feed')
+        navigate(!userType ? '/onboard/user-type' : '/onboard/identity')
         return
       }
 
       // Step 1: Complete profile
-      const profileRes = await fetch(`${API_BASE}/api/auth/complete-profile`, {
+      const profileData = await apiFetch('/api/auth/complete-profile', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          user_type: userType,
-          full_name: identity.full_name,
-          username: identity.username,
-          country: identity.country,
-          interests,
-        }),
+        body: JSON.stringify({ user_type: userType, full_name: identity.full_name, username: identity.username, country: identity.country, interests }),
       })
-      const profileData = await profileRes.json()
-      if (!profileRes.ok) throw new Error(profileData.message || 'Profile setup failed')
+      const profile = profileData.data
 
       // Step 2: Upload avatar if there is one
       const avatarData = sessionStorage.getItem('ff_onboard_avatar_data')
@@ -76,26 +64,19 @@ export default function OnboardCompletePage() {
           const blob = new Blob([u8arr], { type: mime })
 
           const fd = new FormData()
-          fd.append('avatar', blob, 'avatar.jpg')
+          fd.append('file', blob, 'avatar.jpg')
 
-          await fetch(`${API_BASE}/api/profiles/avatar`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${accessToken}` },
-            body: fd,
-          })
+          const uploaded = await apiFetch('/api/uploads/avatar', { method: 'POST', body: fd })
+          profile.avatar_url = uploaded.data.avatar_url
         } catch (e) {
           // Avatar upload fail is non-fatal
-          console.warn('Avatar upload failed:', e)
+          saveSession(localStorage.getItem('ff_token') || accessToken, profile)
+          throw new Error('Your profile was saved, but the photo upload failed. Please try again. ' + e.message)
         }
       }
 
       // Update auth context with new profile
-      saveSession(accessToken, {
-        ...user,
-        ...identity,
-        user_type: userType,
-        onboarding_complete: true,
-      })
+      saveSession(localStorage.getItem('ff_token') || accessToken, profile)
 
       // Clear sessionStorage
       sessionStorage.removeItem('ff_onboard_type')

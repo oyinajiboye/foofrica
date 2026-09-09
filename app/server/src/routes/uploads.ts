@@ -29,7 +29,7 @@ const uploadsRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const mime = data.mimetype
-    if (!mime.startsWith('image/')) {
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(mime)) {
       return reply.status(400).send({ message: 'Only image files are allowed for avatars.' })
     }
 
@@ -89,7 +89,7 @@ const uploadsRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const mime = data.mimetype
-    if (!mime.startsWith('image/')) {
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(mime)) {
       return reply.status(400).send({ message: 'Only image files are allowed for covers.' })
     }
 
@@ -146,7 +146,7 @@ const uploadsRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const mime = data.mimetype
-    if (!mime.startsWith('image/')) {
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(mime)) {
       return reply.status(400).send({ message: 'Only image files are allowed.' })
     }
 

@@ -1,3 +1,4 @@
+import { blockedIds } from './access.service'
 import { env } from '../config/env'
 import { supabaseAdmin } from '../lib/supabase'
 import type { NotificationType } from '../types'
@@ -45,6 +46,16 @@ export async function createNotification(payload: NotificationPayload) {
   // Don't notify yourself
   if (payload.recipientId === payload.actorId) return
 
+  if((await blockedIds(payload.recipientId)).includes(payload.actorId))return
+  const {data:settings,error:settingsError}=await supabaseAdmin.from('user_settings').select('*').eq('user_id',payload.recipientId).maybeSingle()
+  if(settingsError)throw new Error('Unable to check notification preferences')
+  const preference:Record<string,string>={like:'notify_likes',comment:'notify_comments',follow:'notify_follows',message:'notify_messages',mention:'notify_mentions',endorsement:'notify_endorsements',shortlist:'notify_shortlists'}
+  if(settings?.[preference[payload.type]]===false)return
+  if(payload.type==='message' && payload.entityId){
+    const {data:p,error:e}=await supabaseAdmin.from('conversation_preferences').select('muted').eq('conversation_id',payload.entityId).eq('user_id',payload.recipientId).maybeSingle()
+    if(e)throw new Error('Unable to check conversation preferences')
+    if(p?.muted)return
+  }
   // Insert notification record
   const { data: notification } = await supabaseAdmin
     .from('notifications')
@@ -60,6 +71,7 @@ export async function createNotification(payload: NotificationPayload) {
 
   if (!notification) return
 
+  if(settings?.notify_push_enabled===false)return
   // Get FCM token for recipient
   const { data: recipient } = await supabaseAdmin
     .from('profiles')
@@ -88,6 +100,9 @@ export async function createNotification(payload: NotificationPayload) {
 
 function buildPushMessage(type: NotificationType, actorName: string): PushMessage {
   const messages: Record<NotificationType, PushMessage> = {
+    opportunity:{title:'New opportunity',body:`${actorName} published a matching opportunity`},
+    application:{title:'Application update',body:'Your application has an update'},
+    squad:{title:'Squad update',body:'Your squad membership has an update'},
     like: { title: 'New Like', body: `${actorName} liked your post` },
     comment: { title: 'New Comment', body: `${actorName} commented on your post` },
     follow: { title: 'New Follower', body: `${actorName} started following you` },

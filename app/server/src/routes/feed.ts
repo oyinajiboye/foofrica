@@ -1,10 +1,32 @@
+import { z } from 'zod'
+import { recommendedFeed } from '../services/recommendation.service'
+import { canViewPost } from '../services/access.service'
+import { visiblePosts, canViewProfile, publicProfile } from '../services/access.service'
 import type { FastifyPluginAsync } from 'fastify'
-import { getPersonalizedFeed, getFollowingFeed, getTrendingFeed, getDiscoveryFeed, getMatchDayFeed, getFeedHighlights, getSuggestedProfiles } from '../services/feed.service'
+import { getFollowingFeed, getTrendingFeed, getDiscoveryFeed, getMatchDayFeed, getFeedHighlights, getSuggestedProfiles } from '../services/feed.service'
 import { feedQuerySchema } from '../schemas/post.schemas'
 import { supabaseAdmin } from '../lib/supabase'
 import { cacheGet, cacheSet, cacheKeys } from '../lib/redis'
 
 const feedRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.addHook('preHandler',fastify.optionalAuth)
+  fastify.post('/feedback/:id',{preHandler:[fastify.authenticate]},async(request,reply)=>{
+    const {id}=z.object({id:z.string().uuid()}).parse(request.params)
+    const {kind}=z.object({kind:z.enum(['impression','interested','dismissed','profile_open'])}).parse(request.body)
+    const {data:post,error}=await supabaseAdmin.from('posts').select('author_id,visibility').eq('id',id).maybeSingle()
+    if(error)return reply.code(503).send({message:'Unable to save feedback'})
+    if(!post||!await canViewPost(request.user.id,post))return reply.code(403).send({message:'Post unavailable'})
+    const result=await supabaseAdmin.from('feed_feedback').upsert({user_id:request.user.id,post_id:id,kind,created_at:new Date().toISOString()},{onConflict:'user_id,post_id,kind'})
+    if(result.error)return reply.code(503).send({message:'Unable to save feedback'})
+    return {success:true}
+  })
+  fastify.delete('/feedback',{preHandler:[fastify.authenticate]},async(request,reply)=>{
+    const {error}=await supabaseAdmin.from('feed_feedback').delete().eq('user_id',request.user.id)
+    if(error)return reply.code(503).send({message:'Unable to reset feedback'})
+    await supabaseAdmin.from('feed_sessions').delete().eq('user_id',request.user.id)
+    return {success:true}
+  })
+
   /**
    * GET /api/feed
    * Personalized "For You" feed
@@ -12,15 +34,8 @@ const feedRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { page, limit, cursor } = feedQuerySchema.parse(request.query)
 
-    const posts = await getPersonalizedFeed({
-      userId: request.user.id,
-      userType: request.user.user_type,
-      page,
-      limit,
-      cursor,
-    })
-
-    return reply.send({ success: true, data: posts })
+    const data=await recommendedFeed(request.user.id,request.user.user_type,limit,cursor)
+    return reply.send({success:true,data})
   })
 
   /**
@@ -38,7 +53,7 @@ const feedRoutes: FastifyPluginAsync = async (fastify) => {
       cursor,
     })
 
-    return reply.send({ success: true, data: posts })
+    return reply.send({ success: true, data: await visiblePosts(request.user?.id,posts) })
   })
 
   /**
@@ -48,7 +63,7 @@ const feedRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/trending', async (request, reply) => {
     const { page = '1', limit = '20' } = request.query as Record<string, string>
     const posts = await getTrendingFeed(Number(page), Number(limit))
-    return reply.send({ success: true, data: posts })
+    return reply.send({ success: true, data: await visiblePosts(request.user?.id,posts) })
   })
 
   /**
@@ -65,7 +80,7 @@ const feedRoutes: FastifyPluginAsync = async (fastify) => {
       limit,
     })
 
-    return reply.send({ success: true, data: posts })
+    return reply.send({ success: true, data: await visiblePosts(request.user?.id,posts) })
   })
 
   /**
@@ -82,7 +97,7 @@ const feedRoutes: FastifyPluginAsync = async (fastify) => {
       limit,
     })
 
-    return reply.send({ success: true, data: posts })
+    return reply.send({ success: true, data: await visiblePosts(request.user?.id,posts) })
   })
 
   /**
@@ -93,7 +108,7 @@ const feedRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/highlights', { preHandler: [fastify.optionalAuth] }, async (request, reply) => {
     const { limit = '10' } = request.query as Record<string, string>
     const highlights = await getFeedHighlights(Number(limit))
-    return reply.send({ success: true, data: highlights })
+    return reply.send({ success: true, data: await visiblePosts(request.user?.id,highlights) })
   })
 
   /**
@@ -104,7 +119,7 @@ const feedRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/suggestions', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { limit = '5' } = request.query as Record<string, string>
     const suggestions = await getSuggestedProfiles(request.user.id, request.user.user_type, Number(limit))
-    return reply.send({ success: true, data: suggestions })
+    return reply.send({ success: true, data: await Promise.all((await Promise.all(suggestions.map(async (p:any)=>await canViewProfile(request.user.id,p.id)?p:null))).filter(Boolean).map(p=>publicProfile(request.user.id,p))) })
   })
 
   /**

@@ -1,10 +1,11 @@
+import { startOAuth } from '../../lib/oauth'
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { FootfricaLogo } from './WelcomePage'
 import '../../styles/auth.css'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+import { API_BASE } from '../../lib/api'
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 const EyeIcon = ({ open }) =>
@@ -86,7 +87,7 @@ export default function RegisterPage() {
       if (!res.ok) throw new Error(data.message || 'Registration failed')
 
       // Save partial session (no profile yet — needs onboarding)
-      saveSession(data.data.access_token, data.data.profile)
+      saveSession(data.data.access_token, data.data.profile, data.data.refresh_token)
 
       // Go to onboarding step 1: pick user type
       navigate('/onboard/user-type')
@@ -201,7 +202,7 @@ export default function RegisterPage() {
               type="button"
               className="btn btn-outline btn-social"
               id="reg-google"
-              onClick={() => alert('Google OAuth — coming soon')}
+              onClick={() => startOAuth('google').catch(e => setError(e.message))}
             >
               <GoogleIcon /> Continue with Google
             </button>
@@ -209,7 +210,7 @@ export default function RegisterPage() {
               type="button"
               className="btn btn-dark btn-social"
               id="reg-apple"
-              onClick={() => alert('Apple OAuth — coming soon')}
+              onClick={() => startOAuth('apple').catch(e => setError(e.message))}
             >
               <AppleIcon /> Continue with Apple
             </button>

@@ -4,6 +4,7 @@ const POSITIONS = ['GK', 'CB', 'LB', 'RB', 'CDM', 'CM', 'CAM', 'LW', 'RW', 'ST',
 const DOMINANT_FEET = ['left', 'right', 'both'] as const
 
 export const updateProfileSchema = z.object({
+  interests: z.array(z.string().max(60)).max(20).optional(),
   display_name: z.string().min(2).max(60).optional(),
   bio: z.string().max(300).optional(),
   avatar_url: z.string().url().optional(),
@@ -11,6 +12,10 @@ export const updateProfileSchema = z.object({
 })
 
 export const updatePlayerProfileSchema = z.object({
+  availability: z.enum(['not_specified','open_to_trials','open_to_transfer','unavailable']).optional(),
+  willing_to_relocate: z.boolean().optional(),
+  preferred_location: z.string().max(120).optional(),
+  available_from: z.string().date().nullable().optional(),
   full_name: z.string().min(2).max(100).optional(),
   date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   nationality: z.string().max(60).optional(),
@@ -80,8 +85,8 @@ export const endorsePlayerSchema = z.object({
 })
 
 export const paginationSchema = z.object({
-  page: z.string().default('1').transform(Number),
-  limit: z.string().default('20').transform(Number),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
 })
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>

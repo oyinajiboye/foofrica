@@ -1,5 +1,7 @@
+import { env } from '../config/env'
+import { z } from 'zod'
 import type { FastifyPluginAsync } from 'fastify'
-import { supabaseAdmin } from '../lib/supabase'
+import { supabaseAdmin, createAuthClient, createPkceClient } from '../lib/supabase'
 import {
   registerSchema,
   loginSchema,
@@ -9,6 +11,41 @@ import {
 } from '../schemas/auth.schemas'
 
 const authRoutes: FastifyPluginAsync = async (fastify) => {
+  fastify.post('/oauth/:provider', async (request, reply) => {
+    const { provider } = z.object({ provider: z.enum(['google', 'apple']) }).parse(request.params)
+    const pkce = createPkceClient()
+    const { data, error } = await pkce.client.auth.signInWithOAuth({ provider, options: {
+      redirectTo: `${env.FRONTEND_URL}/auth/callback`, skipBrowserRedirect: true,
+    } })
+    if (error || !data.url) return reply.code(400).send({ message: 'This sign-in provider is unavailable.' })
+    return { success: true, data: { url: data.url, verifier: pkce.verifier() } }
+  })
+  fastify.post('/forgot-password', async (request, reply) => {
+    const { email } = z.object({ email: z.string().email().max(254) }).parse(request.body)
+    const pkce = createPkceClient()
+    const { error } = await pkce.client.auth.resetPasswordForEmail(email, { redirectTo: `${env.FRONTEND_URL}/reset-password` })
+    // Same response for unknown addresses to prevent account enumeration.
+    if (error) request.log.warn('Password recovery delivery was not accepted')
+    return { success: true, data: { verifier: pkce.verifier(), message: 'If an account exists, a reset link will arrive shortly. Open it in this browser.' } }
+  })
+  fastify.post('/exchange', async (request, reply) => {
+    const { code, verifier } = z.object({ code: z.string().min(1).max(2048), verifier: z.string().min(32).max(256) }).parse(request.body)
+    const { data, error } = await createPkceClient(verifier).client.auth.exchangeCodeForSession(code)
+    if (error || !data.session) return reply.code(401).send({ message: 'This sign-in link has expired or was already used. Please start again.' })
+    const { data: profile, error: profileError } = await supabaseAdmin.from('profiles').select('*').eq('id', data.user.id).maybeSingle()
+    if (profileError) return reply.code(503).send({ message: 'Account data is unavailable. Please try again.' })
+    return { success: true, data: { access_token: data.session.access_token, refresh_token: data.session.refresh_token, profile, needs_onboarding: !profile } }
+  })
+  fastify.post('/reset-password', { preHandler: [fastify.authenticateIdentity] }, async (request, reply) => {
+    const { password, refresh_token } = z.object({ password: z.string().min(8).max(128), refresh_token: z.string().min(1) }).parse(request.body)
+    const client = createAuthClient()
+    const { data: session, error } = await client.auth.setSession({ access_token: request.headers.authorization!.slice(7), refresh_token })
+    if (error || session.user?.id !== request.authIdentity.id) return reply.code(401).send({ message: 'Please request a new reset link.' })
+    const result = await client.auth.updateUser({ password })
+    if (result.error) return reply.code(400).send({ message: result.error.message })
+    return { success: true }
+  })
+
   /**
    * POST /api/auth/register
    * Create a new user account and return a session immediately.
@@ -35,13 +72,13 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     // 2. Immediately sign the user in so they get a JWT for onboarding
     let session = null
     if (body.email) {
-      const { data: signIn, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
+      const { data: signIn, error: signInError } = await createAuthClient().auth.signInWithPassword({
         email: body.email!,
         password: body.password,
       })
       if (!signInError) session = signIn.session
     } else if (body.phone) {
-      const { data: signIn, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
+      const { data: signIn, error: signInError } = await createAuthClient().auth.signInWithPassword({
         phone: body.phone!,
         password: body.password,
       })
@@ -70,12 +107,12 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
     let authResult
     if (body.email) {
-      authResult = await supabaseAdmin.auth.signInWithPassword({
+      authResult = await createAuthClient().auth.signInWithPassword({
         email: body.email,
         password: body.password,
       })
     } else if (body.phone) {
-      authResult = await supabaseAdmin.auth.signInWithPassword({
+      authResult = await createAuthClient().auth.signInWithPassword({
         phone: body.phone,
         password: body.password,
       })
@@ -120,10 +157,13 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post(
     '/complete-profile',
-    { preHandler: [fastify.authenticate] },
+    { preHandler: [fastify.authenticateIdentity] },
     async (request, reply) => {
       const body = completeProfileSchema.parse(request.body)
-      const userId = request.user.id
+      const userId = request.authIdentity.id
+
+      const { data: previous } = await supabaseAdmin.from('profiles').select('user_type').eq('id', userId).maybeSingle()
+      if (previous && previous.user_type !== body.user_type) return reply.code(409).send({ message: 'Account type cannot be changed during onboarding.' })
 
       // 1. Username uniqueness check
       const { data: existing } = await supabaseAdmin
@@ -151,11 +191,8 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
             display_name: body.full_name,
             user_type: body.user_type,
             interests: body.interests,
-            avatar_url: body.avatar_url ?? null,
-            is_verified: false,
-            follower_count: 0,
-            following_count: 0,
-            post_count: 0,
+            ...(body.avatar_url ? { avatar_url: body.avatar_url } : {}),
+            ...(body.country ? { location: body.country } : {}),
           },
           { onConflict: 'id' }
         )
@@ -172,9 +209,10 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
       // 3. Create type-specific sub-profile (idempotent)
       const typeTable = `${body.user_type}_profiles` as const
-      await supabaseAdmin
+      const { error: subtypeError } = await supabaseAdmin
         .from(typeTable)
-        .upsert({ profile_id: userId }, { onConflict: 'profile_id', ignoreDuplicates: true })
+        .upsert({ profile_id: userId, ...(body.user_type === 'club' ? { club_name: body.full_name, country: body.country } : {}), ...(body.user_type === 'player' ? { full_name: body.full_name, nationality: body.country } : {}) }, { onConflict: 'profile_id', ignoreDuplicates: true })
+      if (subtypeError) return reply.code(500).send({ message: subtypeError.message })
 
       // 4. Seed user_interest_scores from stated interests (cold-start data)
       if (body.interests.length > 0) {
@@ -200,11 +238,11 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
    */
   fastify.post(
     '/onboard',
-    { preHandler: [fastify.authenticate] },
+    { preHandler: [fastify.authenticateIdentity] },
     async (request, reply) => {
       const body = onboardSchema.parse(request.body)
-      const userId = request.user.id
-      const userType = (request.user as any).user_metadata?.user_type ?? 'fan'
+      const userId = request.authIdentity.id
+      const userType = 'fan'
 
       const { data: existing } = await supabaseAdmin
         .from('profiles')
@@ -256,12 +294,12 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
    * POST /api/auth/refresh
    */
   fastify.post('/refresh', async (request, reply) => {
-    const { refresh_token } = request.body as { refresh_token: string }
+    const { refresh_token } = z.object({ refresh_token: z.string().min(1) }).parse(request.body)
     if (!refresh_token) {
       return reply.status(400).send({ message: 'refresh_token required' })
     }
 
-    const { data, error } = await supabaseAdmin.auth.refreshSession({ refresh_token })
+    const { data, error } = await createAuthClient().auth.refreshSession({ refresh_token })
 
     if (error || !data.session) {
       return reply.status(401).send({

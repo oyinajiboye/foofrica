@@ -1,3 +1,5 @@
+import { normalizeTags } from '../domain/ranking'
+import { canViewPost } from '../services/access.service'
 import type { FastifyPluginAsync } from 'fastify'
 import { supabaseAdmin } from '../lib/supabase'
 import { cacheDelete, cacheDeletePattern, cacheKeys } from '../lib/redis'
@@ -6,6 +8,25 @@ import { createPostSchema, createCommentSchema } from '../schemas/post.schemas'
 import { paginationSchema } from '../schemas/profile.schemas'
 
 const postRoutes: FastifyPluginAsync = async (fastify) => {
+  // Apply the same authorization to comments, reactions, reposts and direct reads.
+  fastify.addHook('preHandler', fastify.optionalAuth)
+  fastify.addHook('preHandler', async (request,reply) => {
+    const id=(request.params as {id?:string}).id
+    if(!id)return
+    const {data,error}=await supabaseAdmin.from('posts').select('author_id,visibility').eq('id',id).maybeSingle()
+    if(error) return reply.code(500).send({message:'Unable to check post access'})
+    if(!data)return reply.code(404).send({message:'Post not found'})
+    if(!await canViewPost(request.user?.id,data))return reply.code(403).send({message:'Post is unavailable'})
+  })
+  for (const method of ['POST','DELETE'] as const) fastify.route({ method, url:'/:id/comments/:commentId/like', preHandler:[fastify.authenticate], handler:async(request,reply)=>{
+    const {id,commentId}=request.params as {id:string;commentId:string}
+    const {data:comment,error}=await supabaseAdmin.from('comments').select('id').eq('id',commentId).eq('post_id',id).maybeSingle()
+    if(error)return reply.code(500).send({message:'Unable to check comment'})
+    if(!comment)return reply.code(404).send({message:'Comment not found'})
+    const result=method==='POST'?await supabaseAdmin.from('comment_likes').upsert({comment_id:commentId,user_id:request.user.id},{onConflict:'comment_id,user_id',ignoreDuplicates:true}):await supabaseAdmin.from('comment_likes').delete().eq('comment_id',commentId).eq('user_id',request.user.id)
+    if(result.error)return reply.code(500).send({message:'Unable to update comment like'})
+    return {success:true}
+  }})
   /**
    * POST /api/posts
    * Create a new post
@@ -13,6 +34,14 @@ const postRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const body = createPostSchema.parse(request.body)
     const authorId = request.user.id
+    if(body.video_id){
+      const {data:video}=await supabaseAdmin.from('videos').select('uploader_id,status').eq('id',body.video_id).single()
+      if(!video||video.uploader_id!==authorId||video.status!=='ready')return reply.code(400).send({message:'Choose a processed video that you uploaded.'})
+    }
+    if(body.repost_of){
+      const {data:original}=await supabaseAdmin.from('posts').select('author_id,visibility').eq('id',body.repost_of).single()
+      if(!original||!await canViewPost(authorId,original))return reply.code(403).send({message:'Original post is unavailable.'})
+    }
 
     const { data: post, error } = await supabaseAdmin
       .from('posts')
@@ -23,6 +52,7 @@ const postRoutes: FastifyPluginAsync = async (fastify) => {
         video_id: body.video_id ?? null,
         image_urls: body.image_urls ?? [],
         repost_of: body.repost_of ?? null,
+        tags: normalizeTags([...(body.tags || []),...(body.hashtags || []),...(body.post_type==='video'?['player highlights']:[]) ]),
         hashtags: body.hashtags ?? [],
         mentions: body.mentions ?? [],
         visibility: body.visibility,
@@ -40,6 +70,11 @@ const postRoutes: FastifyPluginAsync = async (fastify) => {
       .single()
 
     if (error) return reply.status(500).send({ message: error.message })
+
+    if(body.post_type==='poll'){
+      const {error:pollError}=await supabaseAdmin.from('polls').insert({post_id:post.id,options:body.poll_options,closes_at:new Date(Date.now()+(body.poll_duration_hours||24)*3600000).toISOString()})
+      if(pollError){await supabaseAdmin.from('posts').delete().eq('id',post.id);return reply.code(500).send({message:'Unable to create poll'})}
+    }
 
     // Increment post count
     await supabaseAdmin.rpc('increment_post_count', { profile_id: authorId })
@@ -315,6 +350,11 @@ const postRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/:id/comments', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { id: postId } = request.params as { id: string }
     const body = createCommentSchema.parse(request.body)
+    if (body.parent_id) {
+      const { data: parent, error } = await supabaseAdmin.from('comments').select('id').eq('id',body.parent_id).eq('post_id',postId).maybeSingle()
+      if (error) return reply.code(500).send({message:'Unable to check parent comment'})
+      if (!parent) return reply.code(400).send({message:'Reply must belong to this post'})
+    }
     const authorId = request.user.id
 
     const { data: comment, error } = await supabaseAdmin
@@ -323,6 +363,7 @@ const postRoutes: FastifyPluginAsync = async (fastify) => {
         post_id: postId,
         author_id: authorId,
         content: body.content,
+        parent_id: body.parent_id ?? null,
         likes_count: 0,
       })
       .select(`

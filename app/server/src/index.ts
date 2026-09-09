@@ -1,3 +1,6 @@
+import accountData from './routes/accountData'
+import conversationControls from './routes/conversationControls'
+import { ZodError } from 'zod'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import rateLimit from '@fastify/rate-limit'
@@ -8,6 +11,9 @@ import authPlugin from './plugins/auth'
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 import authRoutes from './routes/auth'
+import directoryRoutes from './routes/directory'
+import recruitmentRoutes from './routes/recruitment'
+import pollRoutes from './routes/polls'
 import profileRoutes from './routes/profiles'
 import playerRoutes from './routes/players'
 import clubRoutes from './routes/clubs'
@@ -36,7 +42,7 @@ const server = Fastify({
       : true,
 })
 
-async function build() {
+export async function build() {
   // ── CORS ─────────────────────────────────────────────────────────────────
   await server.register(cors, {
     origin: [env.FRONTEND_URL, 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'],
@@ -73,7 +79,36 @@ async function build() {
     environment: env.NODE_ENV,
   }))
 
+  // ── Global Error Handler ──────────────────────────────────────────────────
+  server.setErrorHandler((error, request, reply) => {
+    server.log.error(error)
+
+    if (error instanceof ZodError) return reply.code(400).send({ message: error.issues.map(issue => issue.message).join('; ') })
+
+    if (error.validation) {
+      return reply.status(400).send({
+        statusCode: 400,
+        error: 'Validation Error',
+        message: error.message,
+        details: error.validation,
+      })
+    }
+
+    const statusCode = error.statusCode ?? 500
+    return reply.status(statusCode).send({
+      statusCode,
+      error: error.name ?? 'Internal Server Error',
+      message: statusCode === 500 ? 'An unexpected error occurred' : error.message,
+    })
+  })
+
+
   // ── API Routes ────────────────────────────────────────────────────────────
+  await server.register(accountData,{prefix:'/api/account-data'})
+  await server.register(conversationControls,{prefix:'/api/conversation-controls'})
+  await server.register(pollRoutes, {prefix:'/api/polls'})
+  await server.register(recruitmentRoutes, { prefix: '/api/recruitment' })
+  await server.register(directoryRoutes, { prefix: '/api/directory' })
   await server.register(authRoutes,         { prefix: '/api/auth' })
   await server.register(profileRoutes,      { prefix: '/api/profiles' })
   await server.register(playerRoutes,       { prefix: '/api/players' })
@@ -103,26 +138,6 @@ async function build() {
     })
   })
 
-  // ── Global Error Handler ──────────────────────────────────────────────────
-  server.setErrorHandler((error, request, reply) => {
-    server.log.error(error)
-
-    if (error.validation) {
-      return reply.status(400).send({
-        statusCode: 400,
-        error: 'Validation Error',
-        message: error.message,
-        details: error.validation,
-      })
-    }
-
-    const statusCode = error.statusCode ?? 500
-    return reply.status(statusCode).send({
-      statusCode,
-      error: error.name ?? 'Internal Server Error',
-      message: statusCode === 500 ? 'An unexpected error occurred' : error.message,
-    })
-  })
 
   return server
 }
@@ -151,4 +166,4 @@ const shutdown = async (signal: string) => {
 process.on('SIGTERM', () => shutdown('SIGTERM'))
 process.on('SIGINT',  () => shutdown('SIGINT'))
 
-start()
+if (require.main === module) start()

@@ -31,3 +31,26 @@ export function createUserClient(accessToken: string) {
     },
   })
 }
+
+// Password and refresh calls must not mutate the shared service-role session.
+export function createAuthClient() {
+  return createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+}
+
+// A fresh, request-local PKCE store; the browser retains only the verifier.
+export function createPkceClient(verifier?: string) {
+  const values = new Map<string, string>()
+  const storageKey = 'footfrica-auth'
+  if (verifier) values.set(`${storageKey}-code-verifier`, JSON.stringify(verifier))
+  const client = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
+    auth: { flowType: 'pkce', storageKey, autoRefreshToken: false, persistSession: true,
+      detectSessionInUrl: false, storage: {
+        getItem: key => values.get(key) ?? null,
+        setItem: (key, value) => { values.set(key, value) },
+        removeItem: key => { values.delete(key) },
+      } },
+  })
+  return { client, verifier: () => { const raw=values.get(`${storageKey}-code-verifier`); return raw ? JSON.parse(raw) as string : undefined } }
+}
